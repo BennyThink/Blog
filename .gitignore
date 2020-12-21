@@ -1,0 +1,5 @@
+www/
+.idea/
+webp_cache/
+db_data/
+logs/
