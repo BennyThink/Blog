@@ -32,7 +32,7 @@ services:
     volumes:
       - ./conf:/etc/nginx/conf.d
       - ./logs:/var/log/nginx/
-      - /etc/letsencrypt/live/:/etc/nginx/certs/
+      - ./certs/:/etc/nginx/certs/
     ports:
       - 80:80
       - 443:443
