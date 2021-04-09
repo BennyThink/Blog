@@ -37,6 +37,9 @@ geo $realip_remote_addr $cloudflare_ip {{
     {v6_geo}
 }}
 """
+# reference : https://serverfault.com/questions/601339/how-do-i-deny-all-requests-not-from-cloudflare
 
-with open("block_non_cf.conf","w") as f:
-    f.write(only_cf)
+#
+# for i in `curl https://www.cloudflare.com/ips-v4`; do ufw from $i to any port 80; done
+# with open("block_non_cf.conf","w") as f:
+#     f.write(only_cf)
