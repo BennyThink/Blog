@@ -48,7 +48,5 @@ ufw allow proto udp to any port 80,443
 for i in `curl https://www.cloudflare.com/ips-v4`; do ufw route allow proto tcp from $i to any port 80,443; done
 for i in `curl https://www.cloudflare.com/ips-v6`; do ufw route allow proto tcp from $i to any port 80,443; done
 
-ufw route deny proto tcp from any to any port 80,443
-
 # ufw route insert 18  allow proto tcp from 192.168.7.67 to any port 80,443;
 ```
