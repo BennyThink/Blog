@@ -24,6 +24,17 @@ services:
     volumes:
       - ./www/dmesg.app/:/var/www/html
 
+  aurelia:
+    image: wordpress
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: root
+      WORDPRESS_DB_NAME: aurelia
+    volumes:
+      - ./www/aurelia.im/:/var/www/html
+
   webp:
     image: webpsh/webps
     restart: always
