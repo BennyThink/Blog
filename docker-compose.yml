@@ -15,7 +15,7 @@ services:
     command: "--skip-log-bin"
 
   benny:
-    image: wordpress
+    image: wordpress:php8.2-apache
     restart: always
     environment:
       WORDPRESS_DB_HOST: db
@@ -26,7 +26,7 @@ services:
       - ./www/dmesg.app/:/var/www/html
 
   aurelia:
-    image: wordpress
+    image: wordpress:php8.2-apache
     restart: always
     environment:
       WORDPRESS_DB_HOST: db
@@ -54,4 +54,4 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      TZ: Asia/Shanghai
+      TZ: Europe/Stockholm
