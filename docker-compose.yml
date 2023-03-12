@@ -44,7 +44,7 @@ services:
       - ./webp_cache/:/opt/exhaust
       - ./www/dmesg.app/:/opt/pics
 
-  benny-nginx:
+  nginx:
     image: nginx:alpine
     restart: always
     volumes:
