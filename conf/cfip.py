@@ -25,9 +25,13 @@ for item in v6.split():
     config += directive
 
 bottom = "real_ip_header CF-Connecting-IP;"
-config += "\n" + bottom
+argo = """
+set_real_ip_from 127.0.0.1;
+set_real_ip_from 172.21.0.1;
+"""
+config = config + argo + "\n" + bottom
 
-with open("cloudflare.conf", "w")as f:
+with open("cloudflare.conf", "w") as f:
     f.write(config)
 
 only_cf = f"""
