@@ -27,20 +27,8 @@ services:
     logging:
         driver: "gelf"
         options:
-            gelf-address: "udp://192.168.6.204:12201"
+            gelf-address: "udp://192.168.6.2:12201"
 
-  aurelia:
-    image: wordpress:php8.2-apache
-    restart: always
-    environment:
-      WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_USER: root
-      WORDPRESS_DB_PASSWORD: root
-      WORDPRESS_DB_NAME: aurelia
-    volumes:
-      - ./www/aurelia.im/:/var/www/html
-    ports:
-      - "127.0.0.1:10001:80"
 
   webp:
     image: webpsh/webps
