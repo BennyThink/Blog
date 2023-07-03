@@ -28,23 +28,5 @@ services:
         driver: "gelf"
         options:
             gelf-address: "udp://192.168.6.2:12201"
-
-
-  webp:
-    image: webpsh/webps
-    restart: always
-    volumes:
-      - ./webp_cache/:/opt/exhaust
-      - ./www/dmesg.app/:/opt/pics
-
-  nginx:
-    image: nginx:alpine
-    restart: always
-    volumes:
-      - ./conf:/etc/nginx/conf.d
-      - ./logs:/var/log/nginx/
-      - ./certs/:/etc/nginx/certs/
     ports:
       - "127.0.0.1:10000:80"
-    environment:
-      TZ: Europe/Stockholm
