@@ -194,7 +194,7 @@ const AppleTVPlus: React.FC = () => {
       <Heading>Apple TV+ Global Price</Heading>
       <Text>You can click header to sort, last updated at: {update}</Text>
 
-      {progress < 50 && (
+      {progress < 95 && (
         <>
           <Text>Loading....</Text>
           <Progress value={progress} />
@@ -211,7 +211,7 @@ const AppleTVPlus: React.FC = () => {
         1. Register a new Apple ID with the region you want to subscribe
       </Text>
       <Text>
-        2. Buy gift card from{" "}
+        2. Buy gift card from
         <Link href="https://www.g2a.com/n/reflink-a6460bbb08" isExternal>
           G2A <ExternalLinkIcon mx="2px" />
         </Link>
