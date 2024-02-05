@@ -32,13 +32,7 @@ escape.json_encode = lambda value: json.dumps(value, ensure_ascii=False, default
 
 if DEBUG:
     COUNTRY = {
-        "US": {"currency": "USD", "name": "United States"},
-        "HK": {"currency": "HKD", "name": "Hong Kong"},
-        "TW": {"currency": "TWD", "name": "Taiwan"},
-        "IN": {"currency": "INR", "name": "India"},
-        "TR": {"currency": "TRY", "name": "Turkey"},
-        "AG": {"currency": "XCD", "name": "Antigua And Barbuda"},
-        "SE": {"currency": "SEK", "name": "Sweden"},
+        "MD": {"currency": "USD", "name": "United States"},
     }
 else:
     COUNTRY = {
@@ -241,7 +235,7 @@ else:
         "ZW": {"currency": "ZWL", "name": "Zimbabwe"},
     }
 BASE_URL = "https://tv.apple.com/"
-SPECIAL_COUNTRY = {"KH", "MN", "PY", "CR", "NE", "AM"}
+SPECIAL_COUNTRY = {"KH", "MN", "PY", "CR", "NE", "AM", "BY", "TJ"}
 
 
 class DB:
@@ -288,7 +282,13 @@ def fetch_data():
         if not data:
             continue
         offer = data["/uts/v3/canvases/channels/tvs.sbd.4000"]["upsellOffers"]["tvs.sbd.4000"]["commerceOffers"][0]
-        if offer["priceForDisplay"].startswith("US$") or offer["priceForDisplay"].startswith("USD") or code in SPECIAL_COUNTRY:
+        if (
+            offer["priceForDisplay"].startswith("US$")
+            or offer["priceForDisplay"].startswith("USD")
+            or offer["priceForDisplay"].endswith("USD")
+            or offer["priceForDisplay"].endswith("US$")
+            or code in SPECIAL_COUNTRY
+        ):
             logging.warning("%s doesn't have local price", meta["name"])
             usd_price = offer["price"]
         else:
