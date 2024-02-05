@@ -201,7 +201,29 @@ const AppleTVPlus: React.FC = () => {
         </>
       )}
       <br />
+
       <DataTable columns={columns} data={subscriptions} />
+      <br />
+      <Heading as="h1" size="lg">
+        How to subscribe Apple TV+ from cheaper region?
+      </Heading>
+      <Text>
+        1. Register a new Apple ID with the region you want to subscribe
+      </Text>
+      <Text>
+        2. Buy gift card from{" "}
+        <Link href="https://www.g2a.com/n/reflink-a6460bbb08" isExternal>
+          G2A <ExternalLinkIcon mx="2px" />
+        </Link>
+        <Link
+          href="https://www.eneba.com/store/apple-gift-cards?drms[]=apple&page=1&types[]=top_up"
+          isExternal
+        >
+          eneba <ExternalLinkIcon mx="2px" />
+        </Link>
+      </Text>
+      <Text>3. Redeem your gift card</Text>
+      <Text>4. in-App purchase</Text>
     </Box>
   );
 };

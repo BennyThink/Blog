@@ -33,7 +33,7 @@ export const App = () => {
       <Router>
         <Box textAlign="center" fontSize="xl">
           <Flex
-            minH="20vh"
+            minH="10vh"
             p={1}
             alignItems="center"
             justifyContent="space-between"
