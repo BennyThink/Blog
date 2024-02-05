@@ -30,7 +30,7 @@ import {
   getSortedRowModel,
 } from "@tanstack/react-table";
 
-export interface Subscription {
+interface Subscription {
   code: string;
   name: string;
   local_price: number;
@@ -38,7 +38,13 @@ export interface Subscription {
   usd_price: number;
 }
 
-export type DataTableProps<Data extends object> = {
+interface Response {
+  prices: Subscription[];
+  updated_at: string;
+  progress: number;
+}
+
+type DataTableProps<Data extends object> = {
   data: Data[];
   columns: ColumnDef<Data, any>[];
 };
@@ -121,7 +127,7 @@ const AppleTVPlus: React.FC = () => {
   const toast = useToast();
   React.useEffect(() => {
     axios
-      .get("/api/apple-tv-plus")
+      .get<Response>("/api/apple-tv-plus")
       .then((res) => {
         setSubscriptions(res.data.prices);
         setUpdate(res.data.updated_at);
@@ -182,7 +188,7 @@ const AppleTVPlus: React.FC = () => {
       enableSorting: false,
     }),
   ];
-  // @ts-ignore
+
   return (
     <Box overflowX="auto">
       <Heading>Apple TV+ Global Price</Heading>
