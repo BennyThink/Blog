@@ -26,3 +26,12 @@ services:
       - ./www/dmesg.app/:/var/www/html
     ports:
       - "127.0.0.1:10000:80"
+  pages:
+    image: pages
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      [ "python", "server.py","-h=0.0.0.0" ]
+    ports:
+      - "127.0.0.1:20080:20080"
