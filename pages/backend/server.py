@@ -241,6 +241,7 @@ else:
         "ZW": {"currency": "ZWL", "name": "Zimbabwe"},
     }
 BASE_URL = "https://tv.apple.com/"
+SPECIAL_COUNTRY = {"KH", "MN", "PY", "CR", "NE", "AM"}
 
 
 class DB:
@@ -287,7 +288,7 @@ def fetch_data():
         if not data:
             continue
         offer = data["/uts/v3/canvases/channels/tvs.sbd.4000"]["upsellOffers"]["tvs.sbd.4000"]["commerceOffers"][0]
-        if offer["priceForDisplay"].startswith("US$"):
+        if offer["priceForDisplay"].startswith("US$") or offer["priceForDisplay"].startswith("USD") or code in SPECIAL_COUNTRY:
             logging.warning("%s doesn't have local price", meta["name"])
             usd_price = offer["price"]
         else:
