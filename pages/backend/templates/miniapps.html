@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Telegram mini apps</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/axios@1.1.2/dist/axios.min.js"></script>
+  </head>
+  <body>
+    <div id="greeting"></div>
+    <div id="root">欢迎来到 抽奖小程序</div>
+    <form id="form" style="display: none">
+      <label for="lotteryContent">抽奖内容:</label><br />
+      <textarea
+        id="lotteryContent"
+        name="lotteryContent"
+        rows="4"
+        cols="50"
+      ></textarea
+      ><br /><br />
+
+      <label for="winnerCount">中奖人数:</label><br />
+      <input type="number" id="winnerCount" name="winnerCount" /><br /><br />
+
+      <label for="drawDateTime">开奖时间:</label><br />
+      <input
+        type="datetime-local"
+        id="drawDateTime"
+        name="drawDateTime"
+        min="2024-01-19T00:00"
+      /><br /><br />
+    </form>
+  </body>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const now = new Date();
+      const localDateTime = new Date(
+        now.getTime() - now.getTimezoneOffset() * 60000,
+      )
+        .toISOString()
+        .slice(0, 16);
+      document.getElementById("drawDateTime").min = localDateTime;
+    });
+  </script>
+  <script>
+    window.Telegram.WebApp.MainButton.text = "开始创建";
+    // window.Telegram.WebApp.expand();
+    window.Telegram.WebApp.MainButton.show();
+    document.getElementById(
+      "greeting",
+    ).innerText = `你好 ${window.Telegram.WebApp.initDataUnsafe.user.first_name}`;
+
+    window.Telegram.WebApp.onEvent("mainButtonClicked", () => {
+      if (this.Telegram.WebApp.MainButton.text === "开始创建") {
+        document.getElementById("form").style.display = "block";
+        this.Telegram.WebApp.MainButton.text = "提交";
+      } else if (this.Telegram.WebApp.MainButton.text === "提交") {
+        const lotteryContent = document.getElementById("lotteryContent").value;
+        const winnerCount = document.getElementById("winnerCount").value;
+        const drawDateTime = document.getElementById("drawDateTime").value;
+        const data = {
+          lotteryContent,
+          winnerCount,
+          drawDateTime,
+          initData: this.Telegram.WebApp.initData,
+        };
+        axios
+          .post("/api/lottery", data)
+          .then((res) => {
+            axios.post("/api/notify", { uuid: res.data.message });
+            this.Telegram.WebApp.close();
+          })
+          .catch((err) => {
+            this.Telegram.WebApp.showAlert(err.response.data.message);
+          });
+      }
+    });
+  </script>
+</html>

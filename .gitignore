@@ -4,3 +4,4 @@ webp_cache/
 db_data/
 logs/
 certs/
+/pages/frontend/node_modules/
