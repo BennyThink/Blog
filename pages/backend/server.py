@@ -6,7 +6,6 @@ import logging
 import os
 import pathlib
 import random
-import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -37,6 +36,7 @@ if DEBUG:
         "US": {"currency": "USD", "name": "United States"},
         "HK": {"currency": "HKD", "name": "Hong Kong"},
         "TW": {"currency": "TWD", "name": "Taiwan"},
+        "IN": {"currency": "INR", "name": "India"},
         "TR": {"currency": "TRY", "name": "Turkey"},
         "AG": {"currency": "XCD", "name": "Antigua And Barbuda"},
         "SE": {"currency": "SEK", "name": "Sweden"},
@@ -259,7 +259,7 @@ def fetch_data():
             headers={
                 "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
             },
-        ).text
+        ).content.decode("u8")
 
         soup = BeautifulSoup(text, "html.parser")
         r = soup.find(id="shoebox-uts-api")
@@ -287,7 +287,7 @@ def fetch_data():
             {
                 "code": code,
                 "name": meta["name"],
-                "local_price": re.sub(r"[\s\u00A0|Â]+", " ", offer["priceForDisplay"]),
+                "local_price": offer["priceForDisplay"],
                 "currency": meta["currency"],
                 "usd_price": usd_price,
             }
