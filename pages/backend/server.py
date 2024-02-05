@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import pathlib
+import time
 from concurrent.futures import ThreadPoolExecutor
 from http import HTTPStatus
 
@@ -12,6 +13,15 @@ import tornado.httpclient
 from tornado import escape, gen, httpserver, ioloop, options, web
 from tornado.concurrent import run_on_executor
 from tornado.log import enable_pretty_logging
+import requests
+import json
+from bs4 import BeautifulSoup
+from datetime import datetime
+
+import re
+from apscheduler.schedulers.background import BackgroundScheduler
+
+import threading
 
 enable_pretty_logging()
 logging.basicConfig(
@@ -23,7 +33,7 @@ logging.basicConfig(
 STATIC_PATH = pathlib.Path(__file__).parent.joinpath("templates")
 escape.json_encode = lambda value: json.dumps(value, ensure_ascii=False, default=str)
 
-countries = {
+COUNTRY = {
     "AD": {"currency": "EUR", "name": "Andorra"},
     "AE": {"currency": "AED", "name": "United Arab Emirates"},
     "AF": {"currency": "AFN", "name": "Afghanistan"},
@@ -222,6 +232,66 @@ countries = {
     "ZM": {"currency": "ZMW", "name": "Zambia"},
     "ZW": {"currency": "ZWL", "name": "Zimbabwe"},
 }
+BASE_URL = "https://tv.apple.com/"
+DATA = {
+    "prices": [],
+    "progress": 0.0,
+    "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
+}
+
+COUNTRY = {
+    "US": {"currency": "USD", "name": "United States"},
+    "HK": {"currency": "HKD", "name": "Hong Kong"},
+    "TW": {"currency": "TWD", "name": "Taiwan"},
+    "TR": {"currency": "TRY", "name": "Turkey"},
+    "AG": {"currency": "XCD", "name": "Antigua And Barbuda"},
+    "SE": {"currency": "SEK", "name": "Sweden"},
+}
+
+
+def fetch_data():
+    logging.info("Starting to fetch data from Apple TV+...")
+    for code, meta in COUNTRY.items():
+        time.sleep(5)
+        logging.info("Fetching %s", meta["name"])
+        text = requests.get(
+            BASE_URL + code,
+            headers={
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+            },
+        ).text
+
+        soup = BeautifulSoup(text, "html.parser")
+        r = soup.find(id="shoebox-uts-api")
+        if r is None:
+            logging.warning("Apple TV+ is not available in %s", meta["name"])
+            continue
+        data = json.loads(r.get_text())
+        if not data:
+            continue
+        offer = data["/uts/v3/canvases/channels/tvs.sbd.4000"]["upsellOffers"]["tvs.sbd.4000"]["commerceOffers"][0]
+        if offer["priceForDisplay"].startswith("US$"):
+            logging.warning("%s doesn't have local price", meta["name"])
+            usd_price = offer["price"]
+        else:
+            logging.info("Converting %s %s to USD", offer["price"], meta["currency"])
+            endpoint = "https://v6.exchangerate-api.com/v6/4898f6159879e769eb482231/pair/{currency}/USD/{amount}".format(
+                currency=meta["currency"],
+                amount=offer["price"],
+            )
+            usd_price = round(requests.get(endpoint).json()["conversion_result"], 2)
+
+        DATA["progress"] = len(DATA["prices"]) / len(COUNTRY) * 100
+        DATA["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+        DATA["prices"].append(
+            {
+                "code": code,
+                "name": meta["name"],
+                "local_price": re.sub(r"[\s\u00A0|Â]+", " ", offer["priceForDisplay"]),
+                "currency": meta["currency"],
+                "usd_price": usd_price,
+            }
+        )
 
 
 class BaseHandler(web.RequestHandler):
@@ -251,25 +321,7 @@ class IndexHandler(BaseHandler):
 class AppleTVPlusHandler(BaseHandler):
     @run_on_executor()
     def get_index(self):
-        return {
-            "status": True,
-            "data": [
-                {
-                    "code": "US",
-                    "name": "United States",
-                    "local_price": 4.99,
-                    "currency": "USD",
-                    "usd_price": 4.99,
-                },
-                {
-                    "code": "HK",
-                    "name": "Hong Kong",
-                    "local_price": 89.33,
-                    "currency": "USD",
-                    "usd_price": 10.99,
-                },
-            ],
-        }
+        return DATA
 
     @gen.coroutine
     def get(self):
@@ -313,6 +365,10 @@ class RunServer:
 
 
 if __name__ == "__main__":
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(fetch_data, "cron", day_of_week="mon", hour=0)
+    scheduler.start()
+    threading.Thread(target=fetch_data).start()
     options.define("p", default=20080, help="running port", type=int)
     options.define("h", default="127.0.0.1", help="listen address", type=str)
     options.parse_command_line()

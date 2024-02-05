@@ -2,6 +2,7 @@ import {
   Box,
   Table,
   Tbody,
+  Progress,
   Text,
   Td,
   Link,
@@ -114,13 +115,17 @@ function DataTable<Data extends object>({
 const AppleTVPlus: React.FC = () => {
   document.title = "Apple TV+ Global Price";
   const [subscriptions, setSubscriptions] = React.useState<Subscription[]>([]);
+  const [update, setUpdate] = React.useState("");
+  const [progress, setProgress] = React.useState(0);
   const columnHelper = createColumnHelper<Subscription>();
   const toast = useToast();
   React.useEffect(() => {
     axios
       .get("/api/apple-tv-plus")
       .then((res) => {
-        setSubscriptions(res.data.data);
+        setSubscriptions(res.data.prices);
+        setUpdate(res.data.updated_at);
+        setProgress(res.data.progress);
       })
       .catch((err) => {
         toast({
@@ -177,10 +182,18 @@ const AppleTVPlus: React.FC = () => {
       enableSorting: false,
     }),
   ];
+  // @ts-ignore
   return (
     <Box overflowX="auto">
       <Heading>Apple TV+ Global Price</Heading>
-      <Text>You can click header to sort</Text>
+      <Text>You can click header to sort, last updated at: {update}</Text>
+
+      {progress < 50 && (
+        <>
+          <Text>Loading....</Text>
+          <Progress value={progress} />
+        </>
+      )}
       <br />
       <DataTable columns={columns} data={subscriptions} />
     </Box>
