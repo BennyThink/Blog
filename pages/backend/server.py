@@ -283,6 +283,7 @@ def fetch_data():
 
         DATA["progress"] = len(DATA["prices"]) / len(COUNTRY) * 100
         DATA["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+        logging.info("Adding %s to the list", meta["name"])
         DATA["prices"].append(
             {
                 "code": code,
