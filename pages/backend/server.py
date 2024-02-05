@@ -253,8 +253,8 @@ class DB:
         with open("data.json") as f:
             data = json.load(f)
         data["prices"].append(price)
-        data["progress"] = len(data["prices"]) / len(COUNTRY) * 100
-        data["progress"] = len(data["prices"]) / 103
+        # data["progress"] = len(data["prices"]) / len(COUNTRY) * 100
+        data["progress"] = len(data["prices"]) / 103 * 100
         data["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
         with open("data.json", "w") as f:
             json.dump(data, f)
