@@ -10,7 +10,6 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-
 import requests
 import tornado.httpclient
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -242,14 +241,32 @@ else:
         "ZW": {"currency": "ZWL", "name": "Zimbabwe"},
     }
 BASE_URL = "https://tv.apple.com/"
-DATA = {
-    "prices": [],
-    "progress": 0.0,
-    "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
-}
+
+
+class DB:
+    def __init__(self):
+        init = {
+            "prices": [],
+            "progress": 0.0,
+            "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
+        }
+        with open("data.json", "w") as f:
+            json.dump(init, f)
+
+    @staticmethod
+    def add_price(price: dict):
+        with open("data.json") as f:
+            data = json.load(f)
+        data["prices"].append(price)
+        data["progress"] = len(data["prices"]) / len(COUNTRY) * 100
+        data["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+        with open("data.json", "w") as f:
+            json.dump(data, f)
 
 
 def fetch_data():
+    db = DB()
+
     logging.info("Starting to fetch data from Apple TV+...")
     for code, meta in COUNTRY.items():
         time.sleep(random.random())
@@ -281,10 +298,8 @@ def fetch_data():
             )
             usd_price = round(requests.get(endpoint).json()["conversion_result"], 2)
 
-        DATA["progress"] = len(DATA["prices"]) / len(COUNTRY) * 100
-        DATA["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
         logging.info("Adding %s to the list", meta["name"])
-        DATA["prices"].append(
+        db.add_price(
             {
                 "code": code,
                 "name": meta["name"],
@@ -293,6 +308,7 @@ def fetch_data():
                 "usd_price": usd_price,
             }
         )
+    logging.info("Data fetching is done.")
 
 
 class BaseHandler(web.RequestHandler):
@@ -322,7 +338,9 @@ class IndexHandler(BaseHandler):
 class AppleTVPlusHandler(BaseHandler):
     @run_on_executor()
     def get_index(self):
-        return DATA
+        with open("data.json") as f:
+            data = json.load(f)
+        return data
 
     @gen.coroutine
     def get(self):
