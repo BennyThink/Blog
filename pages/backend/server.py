@@ -17,6 +17,7 @@ from bs4 import BeautifulSoup
 from tornado import escape, gen, httpserver, ioloop, options, web
 from tornado.concurrent import run_on_executor
 from tornado.log import enable_pretty_logging
+from apscheduler.triggers.cron import CronTrigger
 
 DEBUG = True if os.uname().nodename == "Yogurt.lan" else False
 
@@ -387,7 +388,7 @@ class RunServer:
 
 if __name__ == "__main__":
     scheduler = BackgroundScheduler()
-    scheduler.add_job(fetch_data, "cron", day_of_week="mon", hour=0)
+    scheduler.add_job(fetch_data, CronTrigger(day=1, hour=0, minute=0))
     scheduler.start()
     threading.Thread(target=fetch_data).start()
     options.define("p", default=20080, help="running port", type=int)
