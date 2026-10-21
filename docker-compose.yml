@@ -15,7 +15,7 @@ services:
     command: "--skip-log-bin"
 
   benny:
-    image: wordpress:php8.2-apache
+    image: wordpress:php8.5-apache
     restart: always
     environment:
       WORDPRESS_DB_HOST: db
