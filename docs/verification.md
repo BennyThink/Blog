@@ -27,4 +27,10 @@
 
 当前后台处于尚未注册管理员的初始化状态；未验证已登录后的编辑流程。站点所有者需自行注册 Passkey。生产构建有上游后台 JS chunk 超过 500 kB 的提示，不阻止构建和加载。
 
+## Passkey 注册后的会话存储修复
+
+所有者随后完成了 Passkey 验证，但注册响应和登录均失败。排查发现管理员与 Passkey 各有一条记录，初始化已完成；错误发生在 Astro 将会话写入默认的 `/app/node_modules/.astro/sessions/` 时，日志为 ENOENT。
+
+显式配置 `sessionDrivers.fsLite({ base: "./data/sessions" })`，入口脚本创建该目录，使会话使用现有 data bind mount。保留管理员、Passkey 和内容，重新构建容器。真实指纹登录仍由所有者重试确认。
+
 没有连接或变更线上 WordPress，也没有读取旧 WordPress 配置或导入真实内容。

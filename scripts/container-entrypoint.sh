@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+mkdir -p /app/data/sessions
 # Seed only a new volume. Never reapply sample content over an existing database.
 if [ ! -f /app/data/emdash.db ]; then
   if [ -f /app/data/emdash.db-wal ] || [ -f /app/data/emdash.db-shm ]; then

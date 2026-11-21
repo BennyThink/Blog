@@ -4,7 +4,7 @@
 
 运行、数据目录、验收与后续导出说明见 [迁移说明](docs/migration.md)。
 
-逐步迁移清单见 [stories](stories/README.md)。Compose 文件为 `docker-compose.yml`，通过 bind mount 将数据库和媒体保存在项目的 `data/`、`uploads/` 目录。
+逐步迁移清单见 [迁移步骤](docs/README.md)。Compose 文件为 `docker-compose.yml`，通过 bind mount 将数据库和媒体保存在项目的 `data/`、`uploads/` 目录。
 
 ```sh
 npm run secrets:init  # 仅首次生成 .env；已有密钥时跳过

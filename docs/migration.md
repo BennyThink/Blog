@@ -36,6 +36,8 @@ docker compose logs --tail=100 emdash
 | SQLite 与 WAL/SHM | `/app/data/emdash.db` 及同目录附属文件 | `./data` |
 | 本地媒体 | `/app/uploads` | `./uploads` |
 
+Astro 登录会话保存在 `data/sessions/`，与 SQLite 共用 data bind mount。入口脚本确保目录存在；不要改回镜像内的默认缓存目录，否则非 root 容器可能无法保存登录会话。
+
 ```sh
 # 替换容器并沿用本地目录
 docker compose up -d --build --force-recreate

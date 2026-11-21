@@ -31,7 +31,7 @@ npm run verify:docker
 
 ## 验收与遗留
 
-8 篇示例文章、1 个页面、7 张本地图片；重建后记录与媒体哈希一致，SQLite 完整性检查通过。具体证据见 [验收记录](../docs/verification.md)。
+8 篇示例文章、1 个页面、7 张本地图片；重建后记录与媒体哈希一致，SQLite 完整性检查通过。具体证据见 [验收记录](verification.md)。
 
 管理员 Passkey 尚待所有者注册；已登录后的编辑测试在第 06 步完成。原 named volumes 保留作回退副本，当前服务仅使用 bind mount。
 

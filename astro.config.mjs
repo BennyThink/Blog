@@ -1,12 +1,15 @@
 import node from "@astrojs/node";
 import react from "@astrojs/react";
-import { defineConfig, fontProviders } from "astro/config";
+import { defineConfig, fontProviders, sessionDrivers } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 import { Features } from "lightningcss";
 
 export default defineConfig({
 	output: "server",
+	session: {
+		driver: sessionDrivers.fsLite({ base: "./data/sessions" }),
+	},
 	adapter: node({
 		mode: "standalone",
 	}),
