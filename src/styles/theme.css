@@ -110,7 +110,7 @@ a { text-underline-offset: .2em; }
 .article-breadcrumbs a { color: var(--color-brand); text-decoration: none; }
 .article-breadcrumbs + .back-link { display: none; }
 .image-zoom { display: block; cursor: zoom-in; }
-.image-lightbox { position: relative; width: min(96vw, 1400px); max-width: 96vw; max-height: 94dvh; padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); margin: auto; }
+.image-lightbox { position: fixed; inset: 0; width: min(96vw, 1400px); max-width: 96vw; max-height: 94dvh; padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); margin: auto; }
 .image-lightbox::backdrop { background: rgb(0 0 0 / .8); }
 .image-lightbox figure { margin: 0; }
 .image-lightbox img { display: block; max-height: 82dvh; max-width: 100%; object-fit: contain; margin: auto; cursor: zoom-out; }

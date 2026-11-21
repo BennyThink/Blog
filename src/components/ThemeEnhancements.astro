@@ -9,7 +9,7 @@ const settings = await getThemeSettings(Astro.locals, Astro.request);
   <ArrowUpIcon size={16} weight="bold" aria-hidden="true" />
 </button>
 
-<dialog class="image-lightbox" data-lightbox-dialog aria-label="查看大图">
+<dialog class="image-lightbox" data-lightbox-dialog aria-label="查看大图" tabindex="-1" autofocus>
   <button type="button" class="image-lightbox__nav image-lightbox__prev" data-lightbox-prev aria-label="上一张">‹</button>
   <figure><img data-lightbox-image alt="" /><figcaption data-lightbox-caption></figcaption></figure>
   <button type="button" class="image-lightbox__nav image-lightbox__next" data-lightbox-next aria-label="下一张">›</button>
@@ -42,8 +42,6 @@ const settings = await getThemeSettings(Astro.locals, Astro.request);
   const caption = dialog.querySelector<HTMLElement>("[data-lightbox-caption]")!;
   const gallery: HTMLImageElement[] = [];
   let activeIndex = 0;
-  let lightboxScrollY = 0;
-  const restoreScroll = () => requestAnimationFrame(() => window.scrollTo({ top: lightboxScrollY, left: 0, behavior: "auto" }));
   const showImage = (index: number) => {
     activeIndex = (index + gallery.length) % gallery.length;
     const image = gallery[activeIndex];
@@ -64,8 +62,8 @@ const settings = await getThemeSettings(Astro.locals, Astro.request);
       event.stopPropagation();
       showImage(gallery.indexOf(image));
       if (!dialog.open) {
-        lightboxScrollY = window.scrollY;
         dialog.showModal();
+        dialog.focus({ preventScroll: true });
       }
     });
   });
@@ -77,7 +75,6 @@ const settings = await getThemeSettings(Astro.locals, Astro.request);
     if (event.key === "ArrowRight") { event.preventDefault(); showImage(activeIndex + 1); }
   });
   dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
-  dialog.addEventListener("close", restoreScroll);
   // Approved-comment endpoint returns derived image URLs only, never author email or private moderation data.
   document.querySelectorAll<HTMLElement>(".ec-comment[data-comment-id]").forEach(async comment => {
     const heading = comment.querySelector<HTMLElement>(".ec-comment-header"); if (!heading) return;
