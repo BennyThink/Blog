@@ -44,4 +44,10 @@
 - Astro 类型检查 0 错误、0 警告；SQLite integrity_check 为 ok。Docker inspect 确认仅一个 bind mount。
 - 验收脚本改为比较完整记录的 SHA-256，避免真实文章较多时将正文全部输出并超出子进程缓冲区。
 
+## 文章 .html 固定链接
+
+已将文章正式地址改为 `/{slug}.html`，原 `/posts/{slug}` 在文章存在时返回 301，并保留查询参数。集合 URL 规则、默认最近文章组件、卡片、普通搜索、LiveSearch、RSS 和 sitemap 已同步。
+
+`node scripts/verify-permalinks.mjs` 在首次部署和再次重建容器后均通过；NFC 文章正式地址 200，canonical 正确，旧路径 GET/HEAD 返回 301，不存在的文章返回 404。页面路由仍可访问。`npm run verify:docker` 及迁移前备份的内容/评论/媒体/用户/Passkey 记录哈希比对通过。完整说明见 [固定链接兼容](02a-permalinks.md)。
+
 没有连接或变更线上 WordPress，也没有读取旧 WordPress 配置或导入真实内容。

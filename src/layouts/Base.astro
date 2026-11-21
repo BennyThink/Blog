@@ -206,6 +206,7 @@ const year = new Date().getFullYear();
 							resultsClass="site-search-results"
 							resultClass="site-search-result"
 							collections={["posts", "pages"]}
+							routeMap={{ posts: "/:slug.html" }}
 						/>
 						<kbd class="site-search__kbd" aria-hidden="true"
 							><span dir="ltr">⌘K</span></kbd

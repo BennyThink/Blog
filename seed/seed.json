@@ -15,7 +15,7 @@
 			"slug": "posts",
 			"label": "Posts",
 			"labelSingular": "Post",
-			"urlPattern": "/posts/{slug}",
+			"urlPattern": "/{slug}.html",
 			"supports": ["drafts", "revisions", "preview", "search", "seo"],
 			"commentsEnabled": true,
 			"fields": [
@@ -178,7 +178,8 @@
 					"title": "Recent Posts",
 					"props": {
 						"count": 5,
-						"showDate": true
+						"showDate": true,
+						"urlTemplate": "/:slug.html"
 					}
 				},
 				{

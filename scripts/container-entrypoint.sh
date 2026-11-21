@@ -10,4 +10,5 @@ if [ ! -f /app/data/sqlite/emdash.db ]; then
   node node_modules/emdash/dist/cli/index.mjs seed seed/seed.json \
     --database /app/data/sqlite/emdash.db --uploads-dir /app/data/uploads
 fi
+node scripts/migrate-post-urls.mjs
 exec "$@"

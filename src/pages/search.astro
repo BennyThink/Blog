@@ -1,4 +1,5 @@
 ---
+import { postPath } from "../utils/post-url";
 export const prerender = false;
 
 import { search, SearchUnavailableError, type SearchResponse } from "emdash";
@@ -40,7 +41,7 @@ const rows = results.map((result) => {
 		result.snippet?.replaceAll("<mark>", "").replaceAll("</mark>", "") ===
 		escapeHtml(title);
 	return {
-		path: `/posts/${result.slug ?? result.id}`,
+		path: postPath(result.slug ?? result.id),
 		title,
 		titleHtml: snippetIsTitle ? result.snippet : undefined,
 		snippet: snippetIsTitle ? undefined : result.snippet,
