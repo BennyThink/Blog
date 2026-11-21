@@ -1,0 +1,7 @@
+---
+import Home from "../index.astro";
+
+const page = Number(Astro.params.page);
+if (!Number.isInteger(page) || page < 2) return Astro.redirect("/");
+---
+<Home />

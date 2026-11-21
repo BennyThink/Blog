@@ -8,11 +8,9 @@ const loggedIn = !!Astro.locals.user;
 <section class="band theme-bar" aria-label="站点公告">
   <div class="frame theme-bar__inner">
     <div class="theme-notices" data-notices data-fortunes={settings.fortunes ? JSON.stringify(fortunes.map(f => f.content)) : undefined}>
-      <span aria-hidden="true">◉</span>
       <div class="theme-notices__window">
         {notices.length ? notices.map((notice, index) => <p data-notice hidden={index > 0}>{notice}</p>) : <p data-notice>Remember me.</p>}
       </div>
-      <button type="button" data-notice-toggle aria-label="暂停公告轮播" aria-pressed="false" hidden>暂停</button>
     </div>
     <a class="theme-login" href="/_emdash/admin">{loggedIn ? "已登录 · 管理后台" : "站长登录"}</a>
   </div>
@@ -28,14 +26,10 @@ const loggedIn = !!Astro.locals.user;
       else { quote.hidden = true; windowEl.append(quote); }
     }
     const items = [...root.querySelectorAll<HTMLElement>("[data-notice]")];
-    const button = root.querySelector<HTMLButtonElement>("[data-notice-toggle]")!;
     if (items.length < 2) return;
-    button.hidden = false;
-    let index = 0, paused = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    function sync() { button.textContent = paused ? "播放" : "暂停"; button.setAttribute("aria-pressed", String(paused)); button.setAttribute("aria-label", paused ? "播放公告轮播" : "暂停公告轮播"); }
-    sync(); button.addEventListener("click", () => { paused = !paused; sync(); });
+    let index = 0;
     const timer = window.setInterval(() => {
-      if (paused || document.hidden || root.matches(":hover, :focus-within")) return;
+      if (document.hidden || root.matches(":hover, :focus-within")) return;
       items[index].hidden = true; index = (index + 1) % items.length; items[index].hidden = false;
     }, 6500);
     window.addEventListener("pagehide", () => clearInterval(timer), { once: true });

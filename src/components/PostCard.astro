@@ -1,9 +1,11 @@
 ---
 import { postPath } from "../utils/post-url";
-import type { ContentEntry, InferCollectionData } from "emdash";
+import { getCommentCount, type ContentEntry, type InferCollectionData } from "emdash";
 import { Image } from "emdash/ui";
+import { ChatCircleIcon, ClockIcon, EyeIcon, UserIcon } from "@phosphor-icons/react/ssr";
+import ArticleLike from "./ArticleLike.astro";
 import Byline from "./Byline.astro";
-import { formatDate } from "../utils/locale";
+import { formatDate, formatPostAge } from "../utils/locale";
 import { extractText, formatReadingTime, getReadingTime } from "../utils/reading-time";
 
 interface Props {
@@ -26,7 +28,7 @@ const {
 
 const firstImage = post.data.content?.find(block => block._type === "image") as { asset?: { url?: string; _ref?: string }; alt?: string } | undefined;
 const fallbackSrc = firstImage?.asset?.url || firstImage?.asset?._ref;
-const image = post.data.featured_image || (fallbackSrc && /^(https?:\/\/|\/)/.test(fallbackSrc) ? { id: firstImage?.asset?._ref || "", src: fallbackSrc, alt: firstImage?.alt || "" } : undefined);
+const image = post.data.featured_image || (fallbackSrc && /^(https?:\/\/|\/)/.test(fallbackSrc) ? { id: firstImage?.asset?._ref || "", src: fallbackSrc, alt: firstImage?.alt || "" } : undefined) || { id: "wordpress-random-fallback", src: `/images/fallback/${Math.floor(Math.random() * 10) + 1}.jpg`, alt: "" };
 const excerpt = post.data.excerpt || extractText(post.data.content).replace(/\[\/?[a-zA-Z_][^\]]*\]/g, "").slice(0, 260);
 const Heading = `h${headingLevel}` as const;
 const href = postPath(post.id);
@@ -35,6 +37,9 @@ const title = post.data.title || "无标题";
 const publishedAt = post.data.publishedAt ?? null;
 const readingTime = formatReadingTime(getReadingTime(post.data.content));
 const bylines = post.data.bylines ?? [];
+const author = bylines[0]?.byline ?? post.data.byline;
+const authorHref = author?.slug === "benny" ? "/about-me" : `${href}#author-card-title`;
+const commentCount = variant === "row" ? await getCommentCount("posts", post.data.id) : 0;
 const categories = post.data.terms?.category ?? [];
 const visibleTags = tags.slice(0, variant === "card" ? 2 : 3);
 
@@ -56,11 +61,22 @@ const sizes = {
       {excerpt && <p class="legacy-post__excerpt">{excerpt}</p>}
       <a class="legacy-post__read" href={href}>继续阅读 »</a>
     </div>
-    <footer class="legacy-post__meta">
-      <Byline bylines={bylines} size="xs" max={2} />
-      {publishedAt && <time datetime={publishedAt.toISOString()}>{formatDate(publishedAt, "short")}</time>}
-      <span>{readingTime}</span>
-      {typeof post.data.views === "number" && <span>{post.data.views} 次浏览</span>}
+    <footer class="legacy-post__meta auth-span">
+      <span class="legacy-post__author">
+        <UserIcon size={13} weight="fill" aria-hidden="true" />
+        <span>
+          <a href={authorHref}>{author?.displayName ?? "本站作者"}</a>
+          {bylines[1] && `、${bylines[1].byline.displayName}`}
+          {bylines.length > 2 && <span title={bylines.slice(2).map(({ byline }) => byline.displayName).join("、")}> +{bylines.length - 2}</span>}
+        </span>
+      </span>
+      <span>
+        <ClockIcon size={13} aria-hidden="true" />
+        {publishedAt ? <time datetime={publishedAt.toISOString()}>{formatPostAge(publishedAt)}</time> : "发布日期未知"}
+      </span>
+      <span><EyeIcon size={13} aria-hidden="true" /> {post.data.views ?? 0} 浏览</span>
+      <span class="legacy-post__comments"><ChatCircleIcon size={13} aria-hidden="true" /> <a href={`${href}#comments`}>{commentCount} 评论</a></span>
+      <span><ArticleLike postId={post.data.id} count={post.data.bigfa_ding} /></span>
     </footer>
   </article>
 ) : (

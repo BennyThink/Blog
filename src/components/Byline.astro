@@ -20,6 +20,11 @@ const {
 } = Astro.props;
 
 const WHITESPACE = /\s+/;
+const fallbackAvatar = (key: string) => {
+	let hash = 2166136261;
+	for (const char of key) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+	return `/theme/avatars/${(hash >>> 0) % 19 + 1}.png`;
+};
 
 const people = bylines.map(({ byline, roleLabel }) => ({
 	name: byline.displayName,
@@ -27,7 +32,7 @@ const people = bylines.map(({ byline, roleLabel }) => ({
 	src: byline.avatarStorageKey
 		? (Astro.locals.emdash?.getPublicMediaUrl?.(byline.avatarStorageKey) ??
 			`/_emdash/api/media/file/${byline.avatarStorageKey.split("/").map(encodeURIComponent).join("/")}`)
-		: null,
+		: fallbackAvatar(byline.slug || byline.displayName),
 	initials: byline.displayName
 		.split(WHITESPACE)
 		.filter(Boolean)
@@ -44,22 +49,7 @@ const hidden = people.slice(max).map((person) => person.name);
 		<ul class:list={["byline-list", `byline--${size}`, className]}>
 			{people.map((person) => (
 				<li class="byline-list__item">
-					{person.src ? (
-						<img
-							src={person.src}
-							alt=""
-							class="byline__avatar"
-							loading="lazy"
-							decoding="async"
-						/>
-					) : (
-						<span
-							class="byline__avatar byline__avatar--initials"
-							aria-hidden="true"
-						>
-							{person.initials}
-						</span>
-					)}
+					<img src={person.src} alt="" class="byline__avatar" loading="lazy" decoding="async" />
 					<span class="byline-list__text">
 						<span class="byline-list__name">{person.name}</span>
 						{person.role && (
@@ -77,21 +67,7 @@ const hidden = people.slice(max).map((person) => person.name);
 			<span class="byline__avatars" aria-hidden="true">
 				{people
 					.slice(0, 3)
-					.map((person) =>
-						person.src ? (
-							<img
-								src={person.src}
-								alt=""
-								class="byline__avatar"
-								loading="lazy"
-								decoding="async"
-							/>
-						) : (
-							<span class="byline__avatar byline__avatar--initials">
-								{person.initials}
-							</span>
-						),
-					)}
+					.map((person) => <img src={person.src} alt="" class="byline__avatar" loading="lazy" decoding="async" />)}
 			</span>
 			<span class="byline__names">
 				{shown.map((name, index) => (

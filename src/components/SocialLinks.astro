@@ -1,12 +1,16 @@
 ---
 import { getThemeSettings, safeSocialUrl } from "../theme/settings";
+import { EnvelopeSimple, GithubLogo, TelegramLogo, TwitterLogo } from "@phosphor-icons/react/ssr";
+
 const settings = await getThemeSettings(Astro.locals, Astro.request);
 const links = [
-  { label: "Telegram 频道", url: safeSocialUrl(settings.telegramChannel) },
-  { label: "Email", url: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.email) ? `mailto:${settings.email}` : undefined },
-  { label: "GitHub", url: safeSocialUrl(settings.github) },
-  { label: "Twitter", url: safeSocialUrl(settings.twitter) },
-  { label: "Telegram", url: /^[a-zA-Z0-9_]{5,32}$/.test(settings.telegram.replace(/^@/, "")) ? `https://t.me/${settings.telegram.replace(/^@/, "")}` : undefined },
-].filter(link => link.url);
+  { label: "Telegram 频道", url: safeSocialUrl(settings.telegramChannel), Icon: TelegramLogo },
+  { label: "Email", url: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.email) ? `mailto:${settings.email}` : undefined, Icon: EnvelopeSimple },
+  { label: "GitHub", url: safeSocialUrl(settings.github), Icon: GithubLogo },
+  { label: "Twitter", url: safeSocialUrl(settings.twitter), Icon: TwitterLogo },
+  { label: "Telegram", url: /^[a-zA-Z0-9_]{5,32}$/.test(settings.telegram.replace(/^@/, "")) ? `https://t.me/${settings.telegram.replace(/^@/, "")}` : undefined, Icon: TelegramLogo },
+].filter((link) => link.url);
 ---
-{links.length > 0 && <nav class="theme-social" aria-label="社交链接">{links.map(link => <a href={link.url} rel="me noopener noreferrer" target="_blank">{link.label}</a>)}</nav>}
+{links.length > 0 && <nav class="theme-social" aria-label="社交链接">
+  {links.map(({ label, url, Icon }) => <a href={url} aria-label={label} title={label} rel="me noopener noreferrer" target="_blank"><Icon size={22} weight="regular" aria-hidden="true" /></a>)}
+</nav>}

@@ -21,9 +21,13 @@ export function createPlugin() {
         if (!content || content.status !== "published") return null;
         const email = comment.authorEmail.trim().toLowerCase();
         const hash = createHash("md5").update(email).digest("hex");
-        const qq = /^([1-9][0-9]{4,11})@qq\.com$/.exec(email)?.[1];
+        const qqEnabled = (await ctx.settings.get<boolean>("qqAvatars")) !== false;
+        const qq = qqEnabled ? /^([1-9][0-9]{4,11})@qq\.com$/.exec(email)?.[1] : undefined;
+        // Use a stable per-email fallback so the selected local avatar survives reloads.
+        const fallback = Number.parseInt(hash.slice(0, 8), 16) % 19 + 1;
         return { qq: qq ? `https://q1.qlogo.cn/g?b=qq&nk=${qq}&s=100` : null,
-          gravatar: `https://www.gravatar.com/avatar/${hash}?s=80&d=404` };
+          gravatar: `https://www.gravatar.com/avatar/${hash}?s=80&d=404`,
+          fallback: `/theme/avatars/${fallback}.png` };
       } },
     },
     hooks: {

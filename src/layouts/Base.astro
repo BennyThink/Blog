@@ -87,14 +87,10 @@ const pageCtx = createPublicPageContext({
 	siteName: siteTitle,
 });
 
-// Check if user is logged in (for showing admin link)
-const isLoggedIn = !!Astro.locals.user;
-
 const TRAILING_SLASH = /\/$/;
 const currentPath = Astro.url.pathname.replace(TRAILING_SLASH, "") || "/";
 
 const lang = getSiteLocale() ?? "zh-CN";
-const monogram = [...siteTitle.trim()][0]?.toUpperCase() ?? "";
 const year = new Date().getFullYear();
 ---
 
@@ -133,87 +129,67 @@ const year = new Date().getFullYear();
 		<EmDashBodyStart page={pageCtx} />
 		<a href="#main" class="skip-link">跳转到正文</a>
 		<header class="site-header">
-			<div class="frame site-header__inner">
-				<a href="/" class="brand">
-					{
-						siteLogo ? (
-							<img
-								src={siteLogo.url}
-								alt={siteLogo.alt || siteTitle}
-								class="brand__logo"
-							/>
+			<div class="site-header__masthead">
+				<div class="frame">
+					<a href="/" class="brand">
+						{siteLogo ? (
+							<img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="brand__logo" />
 						) : (
 							<>
-								{monogram && (
-									<span class="brand__mark" aria-hidden="true">
-										{monogram}
-									</span>
-								)}
 								<span class="brand__name">{siteTitle}</span>
+								{siteTagline && <span class="brand__tagline">{siteTagline}</span>}
 							</>
-						)
-					}
-				</a>
-				{
-					menuItems.length > 0 && (
-						<nav class="site-nav" aria-label="Main">
+						)}
+					</a>
+				</div>
+			</div>
+			<div class="site-header__nav-band">
+				<div class="frame site-header__inner">
+					{menuItems.length > 0 && (
+						<nav class="site-nav" aria-label="主导航">
 							<ul>
 								<MenuItems items={menuItems} currentPath={currentPath} />
 							</ul>
 						</nav>
-					)
-				}
-				<div class="site-header__actions">
-					<div class="site-search" role="search" aria-label="Site">
-						<svg
-							class="site-search__icon"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.75"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							aria-hidden="true"
-							><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"
-							></path></svg
+					)}
+					<div class="site-header__search">
+						<button
+							type="button"
+							class="site-search-toggle"
+							aria-label="搜索"
+							aria-expanded="false"
+							aria-controls="header-search"
 						>
-						<LiveSearch
-							placeholder={theme.searchPlaceholder}
-							class="site-search__field"
-							inputClass="site-search-input"
-							resultsClass="site-search-results"
-							resultClass="site-search-result"
-							collections={["posts", "pages"]}
-							routeMap={{ posts: "/:slug.html" }}
-						/>
-						<kbd class="site-search__kbd" aria-hidden="true"
-							><span dir="ltr">⌘K</span></kbd
-						>
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								aria-hidden="true"
+							>
+								<circle cx="11" cy="11" r="7" />
+								<path d="m20 20-3.5-3.5" />
+							</svg>
+						</button>
+						<div id="header-search" class="site-search" role="search" aria-label="站内搜索" hidden>
+							<svg class="site-search__icon" viewBox="0 0 24 24" fill="none"
+								stroke="currentColor" stroke-width="4" stroke-linecap="round" aria-hidden="true">
+								<circle cx="10" cy="10" r="6.5" />
+								<path d="m15 15 6 6" />
+							</svg>
+							<LiveSearch
+								placeholder={theme.searchPlaceholder}
+								class="site-search__field"
+								inputClass="site-search-input"
+								resultsClass="site-search-results"
+								resultClass="site-search-result"
+								collections={["posts", "pages"]}
+								routeMap={{ posts: "/:slug.html" }}
+								searchPage="/search"
+							/>
+						</div>
 					</div>
-					<a
-						href="/search"
-						class="icon-btn site-search-link"
-						aria-label="Search"
-					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.75"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							aria-hidden="true"
-							><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"
-							></path></svg
-						>
-					</a>
-					{
-						isLoggedIn && (
-							<a href="/_emdash/admin" class="btn btn--ghost btn--sm nav-admin">
-								Admin
-							</a>
-						)
-					}
 				</div>
 			</div>
 		</header>
@@ -239,209 +215,13 @@ const year = new Date().getFullYear();
 		</main>
 
 		<footer class="site-footer band">
-			<div class="frame site-footer__grid">
-				<div class="site-footer__brand">
-					<a href="/" class="brand">
-						{
-							siteLogo ? (
-								<img
-									src={siteLogo.url}
-									alt={siteLogo.alt || siteTitle}
-									class="brand__logo"
-								/>
-							) : (
-								<>
-									{monogram && (
-										<span class="brand__mark" aria-hidden="true">
-											{monogram}
-										</span>
-									)}
-									<span class="brand__name">{siteTitle}</span>
-								</>
-							)
-						}
-					</a>
-					{siteTagline && <p class="site-footer__tagline">{siteTagline}</p>}
-					<SocialLinks />
-				</div>
-				{
-					menuItems.length > 0 && (
-						<nav class="site-footer__col" aria-labelledby="footer-navigate">
-							<h2 id="footer-navigate" class="eyebrow">
-								Navigate
-							</h2>
-							<ul class="site-footer__links">
-								{menuItems.map((item) => (
-									<li>
-										<a
-											href={item.url}
-											target={item.target}
-											rel={
-												item.target === "_blank"
-													? "noopener noreferrer"
-													: undefined
-											}
-										>
-											{item.label}
-										</a>
-									</li>
-								))}
-							</ul>
-						</nav>
-					)
-				}
-				<div class="site-footer__col">
-					<h2 class="eyebrow">订阅</h2>
-					<ul class="site-footer__links">
-						<li>
-							<a href="/rss.xml">
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="1.75"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									aria-hidden="true"
-									><path d="M4 11a9 9 0 0 1 9 9"></path><path
-										d="M4 4a16 16 0 0 1 16 16"></path><circle
-										cx="5"
-										cy="19"
-										r="1"></circle></svg
-								>
-								RSS 订阅
-							</a>
-						</li>
-					</ul>
-				</div>
-				<div class="site-footer__col site-footer__widgets">
-					<WidgetArea name="footer" />
-				</div>
-			</div>
 			<div class="band site-footer__bottom">
 				<div class="frame site-footer__bottom-inner">
-					<p class="site-footer__meta">
-						{`© ${year} ${siteTitle}.`} 由{" "}
-						<a href="https://emdashcms.com">EmDash</a>
-					</p>
-					<div class="theme-switcher" role="group" aria-label="Color theme">
-						<button
-							type="button"
-							class="theme-btn"
-							data-theme="light"
-							aria-label="Light"
-						>
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.75"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								aria-hidden="true"
-								><circle cx="12" cy="12" r="4"></circle><path
-									d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
-								></path></svg
-							>
-						</button>
-						<button
-							type="button"
-							class="theme-btn"
-							data-theme="dark"
-							aria-label="Dark"
-						>
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.75"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								aria-hidden="true"
-								><path
-									d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"
-								></path></svg
-							>
-						</button>
-						<button
-							type="button"
-							class="theme-btn"
-							data-theme="system"
-							aria-label="System"
-						>
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.75"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								aria-hidden="true"
-								><rect x="2" y="3" width="20" height="14" rx="2"></rect><path
-									d="M8 21h8M12 17v4"></path></svg
-							>
-						</button>
-					</div>
+					<div class="site-footer__meta" set:html={theme.footerText || `© ${year} ${siteTitle}. | Powered by <a href="https://emdashcms.com">EmDash</a>`} />
+					<SocialLinks />
 				</div>
 			</div>
 		</footer>
-
-		<script>
-			// Theme switcher
-			const themeBtns =
-				document.querySelectorAll<HTMLButtonElement>(".theme-btn");
-			const root = document.documentElement;
-
-			function setCookie(
-				name: string,
-				value: string,
-				maxAge: number = 31536000,
-			) {
-				const secure = location.protocol === "https:" ? "; Secure" : "";
-				if (value === "") {
-					document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax${secure}`;
-				} else {
-					document.cookie = `${name}=${value}; path=/; max-age=${maxAge}; SameSite=Lax${secure}`;
-				}
-			}
-
-			function setTheme(theme: string) {
-				if (theme === "system") {
-					setCookie("theme", "");
-					root.classList.remove("light", "dark");
-				} else {
-					setCookie("theme", theme);
-					root.classList.remove("light", "dark");
-					root.classList.add(theme);
-				}
-				updateActiveBtn(theme);
-			}
-
-			function updateActiveBtn(theme: string) {
-				themeBtns.forEach((btn) => {
-					const active = btn.dataset.theme === theme;
-					btn.classList.toggle("active", active);
-					btn.setAttribute("aria-pressed", String(active));
-				});
-			}
-
-			function getStoredTheme(): string {
-				const row = document.cookie
-					.split("; ")
-					.find((item) => item.startsWith("theme="));
-				return row?.slice(6) || "system";
-			}
-
-			// Initialize
-			const storedTheme = getStoredTheme();
-			setTheme(storedTheme);
-
-			themeBtns.forEach((btn) => {
-				btn.addEventListener("click", () => {
-					setTheme(btn.dataset.theme || "system");
-				});
-			});
-		</script>
 
 		<style is:global>
 			/*
@@ -980,9 +760,9 @@ const year = new Date().getFullYear();
 
 		<style>
 			.site-header {
-				position: sticky;
-				top: 0;
-				z-index: 50;
+				position: relative;
+				top: auto;
+				z-index: auto;
 				background: color-mix(in srgb, var(--color-bg) 82%, transparent);
 				backdrop-filter: saturate(1.4) blur(12px);
 				-webkit-backdrop-filter: saturate(1.4) blur(12px);
@@ -1039,20 +819,6 @@ const year = new Date().getFullYear();
 				text-decoration: none;
 			}
 
-			.brand__mark {
-				display: grid;
-				place-items: center;
-				flex-shrink: 0;
-				width: 1.75rem;
-				height: 1.75rem;
-				border-radius: var(--radius);
-				background: var(--color-brand);
-				color: var(--color-on-brand);
-				font-size: var(--font-size-sm);
-				font-weight: 600;
-				letter-spacing: 0;
-			}
-
 			.brand__name {
 				max-width: 16rem;
 				overflow: hidden;
@@ -1107,85 +873,9 @@ const year = new Date().getFullYear();
 					var(--shadow-sm);
 			}
 
-			.site-header__actions {
-				display: flex;
-				align-items: center;
-				gap: var(--spacing-2);
-				margin-inline-start: auto;
-			}
-
-			.site-search {
-				position: relative;
-				width: var(--search-input-width);
-			}
-
-			.site-search__icon {
-				position: absolute;
-				inset-inline-start: 12px;
-				top: 50%;
-				z-index: 1;
-				width: 16px;
-				height: 16px;
-				translate: 0 -50%;
-				color: var(--color-muted);
-				pointer-events: none;
-			}
-
 			.site-search :global(.site-search__field) {
 				display: block;
 				width: 100%;
-			}
-
-			.site-search :global(.site-search-input) {
-				width: 100%;
-				height: 36px;
-				padding-block: 0;
-				padding-inline: 36px 48px;
-				border: 1px solid var(--color-border);
-				border-radius: var(--radius-full);
-				background: var(--color-surface);
-				color: var(--color-text);
-				font-family: var(--font-body);
-				font-size: var(--font-size-sm);
-				transition:
-					border-color var(--transition-fast),
-					box-shadow var(--transition-fast);
-			}
-
-			.site-search :global(.site-search-input)::placeholder {
-				color: var(--color-muted);
-			}
-
-			.site-search :global(.site-search-input):hover {
-				border-color: var(--color-border-strong);
-			}
-
-			.site-search :global(.site-search-input):focus {
-				outline: 2px solid transparent;
-				border-color: var(--color-muted);
-				box-shadow: 0 0 0 3px var(--color-brand-ring);
-			}
-
-			.site-search__kbd {
-				position: absolute;
-				inset-inline-end: 8px;
-				top: 50%;
-				translate: 0 -50%;
-				padding: 2px 6px;
-				border-radius: var(--radius-sm);
-				background: var(--color-bg);
-				box-shadow: inset 0 0 0 1px var(--color-border);
-				color: var(--color-muted);
-				font-size: 11px;
-				font-weight: 500;
-				line-height: 1.4;
-				pointer-events: none;
-				transition: opacity var(--transition-fast);
-			}
-
-			.site-search:focus-within .site-search__kbd,
-			.site-search:has(input:not(:placeholder-shown)) .site-search__kbd {
-				opacity: 0;
 			}
 
 			.site-search :global(.site-search-results) {
@@ -1262,218 +952,72 @@ const year = new Date().getFullYear();
 				color: var(--color-text);
 			}
 
-			.site-search-link {
-				display: none;
-			}
-
 			/* Footer */
-			.site-footer__grid {
-				display: grid;
-				grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
-				gap: var(--spacing-10);
-				padding-block: var(--spacing-16) var(--spacing-12);
-			}
-
-			.site-footer__tagline {
-				margin-top: var(--spacing-4);
-				max-width: 34ch;
-				font-size: var(--font-size-sm);
-				color: var(--color-text-secondary);
-			}
-
-			.site-footer__col .eyebrow,
-			.site-footer__widgets :global(.widget__title) {
-				margin-bottom: var(--spacing-4);
-			}
-
-			.site-footer__links {
-				display: grid;
-				gap: var(--spacing-3);
-				list-style: none;
-			}
-
-			.site-footer__links a {
-				display: inline-flex;
-				align-items: center;
-				gap: var(--spacing-2);
-				font-size: var(--font-size-sm);
-				color: var(--color-text-secondary);
-				text-decoration: none;
-			}
-
-			.site-footer__links a:hover {
-				color: var(--color-text);
-			}
-
-			.site-footer__links svg {
-				width: 15px;
-				height: 15px;
-			}
-
-			.site-footer__widgets :global(.widget-area) {
-				display: grid;
-				gap: var(--spacing-8);
-			}
-
-			.site-footer__widgets :global(.widget__title) {
-				font-family: var(--font-mono);
-				font-size: var(--font-size-label);
-				font-weight: 500;
-				letter-spacing: var(--tracking-wider);
-				text-transform: uppercase;
-				color: var(--color-muted);
-			}
-
-			.site-footer__widgets :global(.widget__content) {
-				font-size: var(--font-size-sm);
-				line-height: var(--leading-relaxed);
-				color: var(--color-text-secondary);
-			}
-
-			.site-footer__widgets :global(.widget__content ul) {
-				display: grid;
-				gap: var(--spacing-3);
-				list-style: none;
-			}
-
 			.site-footer__bottom-inner {
-				display: flex;
-				flex-wrap: wrap;
-				align-items: center;
-				justify-content: space-between;
-				gap: var(--spacing-4);
-				padding-block: var(--spacing-5);
+				display: grid;
+				justify-items: center;
+				gap: 4px;
+				padding-block: var(--spacing-3);
 			}
 
 			.site-footer__meta {
 				font-size: var(--font-size-xs);
 				color: var(--color-muted);
+				line-height: var(--leading-relaxed);
+				text-align: center;
 			}
+
+			.site-footer__bottom .theme-social { margin: 0; justify-content: center; gap: 1.5rem; }
+			.site-footer__bottom .theme-social a { display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; color: var(--color-muted); text-decoration: none; }
+			.site-footer__bottom .theme-social a:hover { color: var(--color-text); }
+			.site-footer__bottom .theme-social svg { display: block; width: 1.25rem; height: 1.25rem; }
+
+			.site-footer__meta :global(a) { color: var(--color-text-secondary); }
 
 			.site-footer__meta a {
 				color: var(--color-text-secondary);
 			}
 
-			.theme-switcher {
-				display: inline-flex;
-				gap: 2px;
-				padding: 3px;
-				border-radius: var(--radius-full);
-				background: var(--color-fill);
-			}
-
-			.theme-btn {
-				display: grid;
-				place-items: center;
-				width: 1.75rem;
-				height: 1.75rem;
-				padding: 0;
-				border: 0;
-				border-radius: var(--radius-full);
-				background: transparent;
-				color: var(--color-muted);
-				cursor: pointer;
-				transition:
-					color var(--transition-fast),
-					background-color var(--transition-fast),
-					box-shadow var(--transition-fast);
-			}
-
-			.theme-btn:hover {
-				color: var(--color-text);
-			}
-
-			.theme-btn.active {
-				background: var(--color-surface);
-				color: var(--color-text);
-				box-shadow:
-					0 0 0 1px var(--color-ring),
-					var(--shadow-sm);
-			}
-
-			.theme-btn svg {
-				width: 15px;
-				height: 15px;
-			}
-
 			@media (forced-colors: active) {
-				.site-nav a[aria-current],
-				.theme-btn.active {
+				.site-nav a[aria-current] {
 					border: 1px solid CanvasText;
 				}
 			}
 
-			@media (max-width: 900px) {
-				.site-footer__grid {
-					grid-template-columns: repeat(2, minmax(0, 1fr));
-					gap: var(--spacing-8);
-					padding-block: var(--spacing-12) var(--spacing-10);
-				}
 
-				.site-footer__brand {
-					grid-column: 1 / -1;
-				}
-			}
-
-			/* Phones: brand and actions on the first row, the nav on its own row */
-			@media (max-width: 640px) {
-				.site-header {
-					position: relative;
-				}
-
-				.site-header__inner {
-					flex-wrap: wrap;
-					row-gap: var(--spacing-1);
-					padding-block: var(--spacing-3) var(--spacing-2);
-				}
-
-				.site-nav {
-					order: 3;
-					flex-basis: 100%;
-					margin-inline-start: -10px;
-				}
-
-				.site-nav a {
-					padding: 8px 10px;
-				}
-
-				.site-search {
-					display: none;
-				}
-
-				.site-search-link {
-					display: inline-grid;
-					width: 2.5rem;
-					height: 2.5rem;
-				}
-			}
-
-			@media (max-width: 560px) {
-				.site-footer__grid {
-					grid-template-columns: minmax(0, 1fr);
-				}
-
-				.brand__name {
-					max-width: 9rem;
-				}
-			}
 		</style>
 
 		<script>
-			// ⌘K / Ctrl+K focuses the header search
-			const searchInput =
-				document.querySelector<HTMLInputElement>(".site-search-input");
-			const kbd = document.querySelector(".site-search__kbd span");
-			if (kbd && !/Mac|iPhone|iPad|iPod/.test(navigator.platform)) {
-				kbd.textContent = "Ctrl K";
+			const searchToggle = document.querySelector<HTMLButtonElement>(".site-search-toggle");
+			const searchPanel = document.getElementById("header-search");
+			const searchInput = searchPanel?.querySelector<HTMLInputElement>(".site-search-input");
+
+			if (searchToggle && searchPanel && searchInput) {
+				searchInput.setAttribute("aria-label", "搜索站内内容");
+
+				const setSearchOpen = (open: boolean) => {
+					searchPanel.toggleAttribute("hidden", !open);
+					searchToggle.setAttribute("aria-expanded", String(open));
+					if (open) searchInput.focus();
+				};
+
+				searchToggle.addEventListener("click", () => setSearchOpen(searchPanel.hasAttribute("hidden")));
+				document.addEventListener("click", (event) => {
+					if (searchPanel.hidden || !(event.target instanceof Node)) return;
+					if (searchToggle.contains(event.target) || searchPanel.contains(event.target)) return;
+					setSearchOpen(false);
+				});
+				document.addEventListener("keydown", (event) => {
+					if (event.isComposing) return;
+					if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+						event.preventDefault();
+						setSearchOpen(true);
+					} else if (event.key === "Escape" && !searchPanel.hidden) {
+						setSearchOpen(false);
+						searchToggle.focus();
+					}
+				});
 			}
-			document.addEventListener("keydown", (e) => {
-				if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "k") return;
-				// The header search is hidden on small screens; leave the shortcut to the browser there
-				if (!searchInput || searchInput.getClientRects().length === 0) return;
-				e.preventDefault();
-				searchInput.focus();
-			});
 		</script>
 		<ThemeEnhancements />
 		<EmDashBodyEnd page={pageCtx} />

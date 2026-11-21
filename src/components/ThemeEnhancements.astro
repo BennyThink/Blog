@@ -1,16 +1,33 @@
 ---
+import { ArrowUpIcon } from "@phosphor-icons/react/ssr";
 import { getThemeSettings } from "../theme/settings";
 const settings = await getThemeSettings(Astro.locals, Astro.request);
 ---
 <div hidden data-theme-features data-pangu={settings.pangu} data-lightbox={settings.lightbox} data-transparent-nav={settings.transparentNav} data-comment-placeholder={settings.commentPlaceholder}></div>
 
+<button type="button" class="back-to-top" data-back-to-top aria-label="返回顶部" title="返回顶部" hidden>
+  <ArrowUpIcon size={16} weight="bold" aria-hidden="true" />
+</button>
+
 <dialog class="image-lightbox" data-lightbox-dialog aria-label="查看大图">
-  <button type="button" data-lightbox-close aria-label="关闭大图">关闭 ×</button>
+  <button type="button" class="image-lightbox__nav image-lightbox__prev" data-lightbox-prev aria-label="上一张">‹</button>
   <figure><img data-lightbox-image alt="" /><figcaption data-lightbox-caption></figcaption></figure>
+  <button type="button" class="image-lightbox__nav image-lightbox__next" data-lightbox-next aria-label="下一张">›</button>
 </dialog>
 <script>
   import pangu from "../theme/pangu.js";
   const features = document.querySelector<HTMLElement>("[data-theme-features]")!;
+  const backToTop = document.querySelector<HTMLButtonElement>("[data-back-to-top]");
+  if (backToTop) {
+    const updateBackToTop = () => backToTop.toggleAttribute("hidden", window.scrollY <= 200);
+    window.addEventListener("scroll", updateBackToTop, { passive: true });
+    window.addEventListener("pageshow", updateBackToTop);
+    backToTop.addEventListener("click", (event) => {
+      if (event.detail === 0) document.querySelector<HTMLElement>(".skip-link")?.focus({ preventScroll: true });
+      window.scrollTo({ top: 0 });
+    });
+    updateBackToTop();
+  }
   if (features.dataset.transparentNav === "true") document.documentElement.classList.add("transparent-nav");
   const header = document.querySelector(".site-header");
   const observer = new IntersectionObserver(([entry]) => header?.classList.toggle("is-scrolled", !entry.isIntersecting));
@@ -23,43 +40,62 @@ const settings = await getThemeSettings(Astro.locals, Astro.request);
   const dialog = document.querySelector<HTMLDialogElement>("[data-lightbox-dialog]")!;
   const preview = dialog.querySelector<HTMLImageElement>("[data-lightbox-image]")!;
   const caption = dialog.querySelector<HTMLElement>("[data-lightbox-caption]")!;
+  const gallery: HTMLImageElement[] = [];
+  let activeIndex = 0;
+  let lightboxScrollY = 0;
+  const restoreScroll = () => requestAnimationFrame(() => window.scrollTo({ top: lightboxScrollY, left: 0, behavior: "auto" }));
+  const showImage = (index: number) => {
+    activeIndex = (index + gallery.length) % gallery.length;
+    const image = gallery[activeIndex];
+    preview.src = image.currentSrc || image.src;
+    preview.alt = image.alt;
+    caption.textContent = image.alt;
+  };
   if (features.dataset.lightbox === "true") document.querySelectorAll<HTMLImageElement>(".prose img").forEach(image => {
     if (image.closest("a, button")) return;
     const anchor = document.createElement("a"); anchor.href = image.currentSrc || image.src;
     if (!["https:", "http:"].includes(new URL(anchor.href).protocol)) return;
     anchor.className = "image-zoom"; anchor.setAttribute("aria-label", `查看大图：${image.alt || "正文图片"}`);
+    gallery.push(image);
     image.replaceWith(anchor); anchor.append(image);
     anchor.addEventListener("click", event => {
       if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-      event.preventDefault(); preview.src = image.currentSrc || image.src; preview.alt = image.alt; caption.textContent = image.alt;
-      dialog.showModal();
+      event.preventDefault();
+      event.stopPropagation();
+      showImage(gallery.indexOf(image));
+      if (!dialog.open) {
+        lightboxScrollY = window.scrollY;
+        dialog.showModal();
+      }
     });
   });
-  dialog.querySelector("[data-lightbox-close]")?.addEventListener("click", () => dialog.close());
+  dialog.querySelector("[data-lightbox-prev]")?.addEventListener("click", () => showImage(activeIndex - 1));
+  dialog.querySelector("[data-lightbox-next]")?.addEventListener("click", () => showImage(activeIndex + 1));
+  preview.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("keydown", event => {
+    if (event.key === "ArrowLeft") { event.preventDefault(); showImage(activeIndex - 1); }
+    if (event.key === "ArrowRight") { event.preventDefault(); showImage(activeIndex + 1); }
+  });
   dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
+  dialog.addEventListener("close", restoreScroll);
   // Approved-comment endpoint returns derived image URLs only, never author email or private moderation data.
   document.querySelectorAll<HTMLElement>(".ec-comment[data-comment-id]").forEach(async comment => {
     const heading = comment.querySelector<HTMLElement>(".ec-comment-header"); if (!heading) return;
-    const fallback = document.createElement("span"); fallback.className = "comment-avatar"; fallback.setAttribute("aria-hidden", "true");
-    const mosaic = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    mosaic.setAttribute("viewBox", "0 0 5 5"); mosaic.setAttribute("width", "28"); mosaic.setAttribute("height", "28");
-    for (let x = 0; x < 3; x++) for (let y = 0; y < 5; y++) {
-      if (Math.random() < .5) continue;
-      for (const col of new Set([x, 4 - x])) {
-        const cell = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        cell.setAttribute("x", String(col)); cell.setAttribute("y", String(y)); cell.setAttribute("width", "1"); cell.setAttribute("height", "1"); cell.setAttribute("fill", "currentColor"); mosaic.append(cell);
-      }
-    }
-    fallback.append(mosaic); heading.prepend(fallback);
+    const fallback = new Image(36, 36); fallback.alt = ""; fallback.className = "comment-avatar";
+    fallback.src = `/theme/avatars/${(Array.from(comment.dataset.commentId!).reduce((hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619), 2166136261) >>> 0) % 19 + 1}.png`;
+    fallback.referrerPolicy = "no-referrer"; heading.prepend(fallback);
     try {
       const response = await fetch(`/_emdash/api/plugins/dmesg-theme/avatar?id=${encodeURIComponent(comment.dataset.commentId!)}`);
       if (!response.ok) return;
       const { data } = await response.json(); if (!data) return;
       const image = new Image(36, 36); image.alt = ""; image.className = "comment-avatar"; image.referrerPolicy = "no-referrer";
-      let triedGravatar = !data.qq;
+      let stage: "qq" | "gravatar" | "fallback" = data.qq ? "qq" : "gravatar";
       image.addEventListener("load", () => fallback.replaceWith(image));
-      image.addEventListener("error", () => { if (!triedGravatar) { triedGravatar = true; image.src = data.gravatar; } else image.replaceWith(fallback); });
+      image.addEventListener("error", () => {
+        if (stage === "qq") { stage = "gravatar"; image.src = data.gravatar; }
+        else if (stage === "gravatar") { stage = "fallback"; image.referrerPolicy = ""; image.src = data.fallback; }
+      });
       image.src = data.qq || data.gravatar;
-    } catch { /* Local initials remain available offline. */ }
+    } catch { fallback.hidden = false; /* Use the stable local visual fallback when offline. */ }
   });
 </script>

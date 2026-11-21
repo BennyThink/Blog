@@ -205,31 +205,179 @@
   !important lets these few overrides win without copying their generated
   selectors.
 */
-.prose .emdash-code pre {
-	padding: 1rem 1.25rem !important;
-	border-radius: var(--radius-lg) !important;
-	background: var(--color-fill) !important;
+.prose .emdash-code {
+	--code-gutter-width: 3.25rem;
+	--code-gutter-bg: light-dark(#eeeeee, #252a28);
+	--code-gutter-line: #33b796;
+	--code-keyword: light-dark(#f92659, #ff668b);
+	--code-string: light-dark(#a66b32, #d9a66f);
+	--code-number: light-dark(#b000b0, #e080e0);
+	--code-title: light-dark(#dc322f, #ff7774);
+	--code-attribute: light-dark(#008000, #69c983);
+	--code-meta: light-dark(#008000, #69c983);
+	position: relative;
+	overflow: hidden;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-fill);
 }
 
-.prose .emdash-code-filename + pre {
-	border-radius: 0 0 var(--radius-lg) var(--radius-lg) !important;
+.prose .emdash-code pre {
+	margin: 0 !important;
+	padding: 0.85rem 1rem 0.85rem 0 !important;
+	border-radius: var(--radius-lg) !important;
+	background: var(--color-fill) !important;
+	box-shadow: inset var(--code-gutter-width) 0 0 var(--code-gutter-bg), inset calc(var(--code-gutter-width) + 2px) 0 0 var(--code-gutter-line);
+	white-space: pre !important;
+	overflow-x: auto !important;
+	overflow-y: hidden !important;
 }
 
 .prose .emdash-code code {
+	display: block;
+	width: 100%;
+	min-width: 0;
 	color: var(--color-text) !important;
 	font-family: var(--font-mono) !important;
 	font-size: var(--font-size-sm) !important;
-	line-height: 1.7;
+	line-height: 1.75;
+}
+
+.prose .emdash-code .code-line {
+	display: block;
+	position: relative;
+	min-height: 1.75em;
+	padding-inline: calc(var(--code-gutter-width) + 0.75rem) 1rem;
+	white-space: pre;
+}
+
+.prose .emdash-code .code-line::before {
+	position: absolute;
+	inset-block: 0;
+	left: 0;
+	box-sizing: border-box;
+	width: var(--code-gutter-width);
+	padding-inline-end: 0.75rem;
+	color: var(--color-muted);
+	content: attr(data-line);
+	text-align: end;
+	user-select: none;
+}
+
+.prose .code-toolbar {
+	position: absolute;
+	z-index: 1;
+	top: 0.45rem;
+	right: 0.45rem;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.prose .code-language {
+	color: var(--color-muted);
+	font: 0.6875rem/1 var(--font-mono);
+	text-transform: uppercase;
+}
+
+.prose .code-copy {
+	display: grid;
+	width: 2rem;
+	height: 2rem;
+	place-items: center;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-surface);
+	color: var(--color-text-secondary);
+	cursor: pointer;
+}
+
+.prose .code-copy:hover,
+.prose .code-wrap-toggle:hover,
+.prose .code-wrap-toggle[aria-pressed="true"] {
+	color: var(--color-text);
+	border-color: var(--color-text-secondary);
+}
+
+.prose .code-copy svg,
+.prose .code-wrap-toggle svg {
+	width: 1rem;
+	height: 1rem;
+	stroke: currentColor;
+	stroke-width: 1.7;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.prose .code-wrap-toggle {
+	display: grid;
+	width: 2rem;
+	height: 2rem;
+	place-items: center;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-surface);
+	color: var(--color-text-secondary);
+	cursor: pointer;
+}
+
+.prose .emdash-code.is-wrapped pre,
+.prose .emdash-code.is-wrapped .code-line {
+	white-space: pre-wrap !important;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+
+.prose .emdash-code.is-wrapped pre { overflow-x: hidden !important; }
+
+.prose .code-copy .check-icon,
+.prose .code-copy.is-copied .copy-icon {
+	display: none;
+}
+
+.prose .code-copy.is-copied .check-icon {
+	display: block;
+	color: var(--color-brand);
 }
 
 .prose .emdash-code-filename {
-	padding: 0.5rem 1.25rem !important;
-	border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+	padding: 0.55rem 1rem !important;
+	border-radius: 0 !important;
 	border-block-end: 1px solid var(--color-border);
 	background: var(--color-fill-strong) !important;
 	color: var(--color-text-secondary) !important;
 	font-family: var(--font-mono) !important;
 }
+
+.prose .emdash-code-filename + .code-toolbar + pre {
+	border-radius: 0 0 var(--radius-lg) var(--radius-lg) !important;
+}
+
+.prose .emdash-code .hljs-comment,
+.prose .emdash-code .hljs-quote { color: light-dark(#79837d, #9aa69f); font-style: italic; }
+.prose .emdash-code .hljs-keyword,
+.prose .emdash-code .hljs-selector-tag,
+.prose .emdash-code .hljs-literal,
+.prose .emdash-code .hljs-built_in { color: var(--code-keyword); }
+.prose .emdash-code .hljs-meta,
+.prose .emdash-code .hljs-meta .hljs-keyword { color: var(--code-meta); }
+.prose .emdash-code .hljs-string,
+.prose .emdash-code .hljs-attr,
+.prose .emdash-code .hljs-template-tag { color: var(--code-string); }
+.prose .emdash-code .hljs-number,
+.prose .emdash-code .hljs-symbol,
+.prose .emdash-code .hljs-bullet { color: var(--code-number); }
+.prose .emdash-code .hljs-title,
+.prose .emdash-code .hljs-function,
+.prose .emdash-code .hljs-type,
+.prose .emdash-code .hljs-class .hljs-title,
+.prose .emdash-code .hljs-title.function_ { color: var(--code-title); }
+.prose .emdash-code .hljs-variable,
+.prose .emdash-code .hljs-property,
+.prose .emdash-code .hljs-params { color: var(--color-text); }
+.prose .emdash-code .hljs-attribute,
+.prose .emdash-code .hljs-selector-id,
+.prose .emdash-code .hljs-selector-class { color: var(--code-attribute); }
 
 .prose .emdash-button {
 	border-radius: var(--radius-full) !important;

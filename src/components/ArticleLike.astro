@@ -1,0 +1,56 @@
+---
+import { HeartIcon } from "@phosphor-icons/react/ssr";
+
+interface Props {
+  postId: string;
+  count?: number;
+  variant?: "row" | "detail";
+}
+
+const { postId, count: storedCount, variant = "row" } = Astro.props;
+const count = storedCount ?? 0;
+---
+<article-like data-post-id={postId} data-count={count}>
+  <button type="button" class:list={[variant === "row" ? "post-list-like" : "article-like", "action"]}
+    aria-label="点赞" aria-pressed="false">
+    <HeartIcon size={variant === "row" ? 13 : 16} aria-hidden="true" />
+    {variant === "row" ? <><span data-like-count>{count}</span> 个赞</> : <>喜欢 (<span data-like-count>{count}</span>)</>}
+  </button>
+</article-like>
+
+<script>
+  class ArticleLike extends HTMLElement {
+    connectedCallback() {
+      const button = this.querySelector("button");
+      const count = this.querySelector("[data-like-count]");
+      if (!button || !count) return;
+
+      const key = `dmesg:post-like:${this.dataset.postId}`;
+      const baseCount = Number(this.dataset.count);
+      let liked = false;
+      try {
+        liked = localStorage.getItem(key) === "1";
+      } catch {
+        // The control still works for this view if storage is unavailable.
+      }
+
+      const render = () => {
+        button.setAttribute("aria-pressed", String(liked));
+        count.textContent = String(baseCount + Number(liked));
+      };
+      button.onclick = () => {
+        liked = !liked;
+        try {
+          if (liked) localStorage.setItem(key, "1");
+          else localStorage.removeItem(key);
+        } catch {
+          // Keep the current view responsive if storage is unavailable.
+        }
+        render();
+      };
+      render();
+    }
+  }
+
+  customElements.define("article-like", ArticleLike);
+</script>

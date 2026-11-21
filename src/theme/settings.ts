@@ -4,6 +4,7 @@ export const publicDefaults = {
   announcements: "", fortunes: true, searchPlaceholder: "搜索文章…",
   commentPlaceholder: "写下你的想法…", keywords: "", description: "",
   titleSeparator: " | ", copyright: "未经许可，请勿转载。", copyrightEnabled: true,
+  footerText: "",
   telegramChannel: "", email: "", github: "", twitter: "", telegram: "",
   pangu: true, lightbox: true, transparentNav: true,
 };
@@ -18,6 +19,7 @@ export const settingsSchema: Record<string, SettingField> = {
   titleSeparator: { type: "string", label: "标题分隔符", default: " | " },
   copyright: { type: "string", label: "文章版权声明", multiline: true, default: publicDefaults.copyright },
   copyrightEnabled: { type: "boolean", label: "显示文章版权", default: true },
+  footerText: { type: "string", label: "页脚版权栏 HTML（仅可信 HTML）", multiline: true },
   telegramChannel: { type: "url", label: "Telegram 频道地址" },
   email: { type: "email", label: "联系邮箱" },
   github: { type: "url", label: "GitHub 地址" },
@@ -35,7 +37,8 @@ export const settingsSchema: Record<string, SettingField> = {
   blockedIpHashes: { type: "string", label: "评论 IP 哈希黑名单（每行一项；原始 IP 用服务端环境变量）", multiline: true },
   blockLinks: { type: "boolean", label: "禁止昵称及评论含链接", default: false },
   maxLinkLength: { type: "number", label: "评论内链接最大长度（0 不限制）", default: 0, min: 0 },
-  mixedAvatars: { type: "boolean", label: "QQ → Gravatar → 本地头像", default: true },
+  mixedAvatars: { type: "boolean", label: "启用混合评论头像（关闭后使用默认头像）", default: true },
+  qqAvatars: { type: "boolean", label: "优先使用 QQ 邮箱头像", default: true },
   telegramEnabled: { type: "boolean", label: "启用新文章 Telegram 通知（迁移完成后开启）", default: false },
 };
 

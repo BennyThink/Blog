@@ -1,6 +1,5 @@
 ---
 import { getEmDashCollection, getTaxonomyTermsWithCacheHint } from "emdash";
-import SocialLinks from "./SocialLinks.astro";
 
 const [recent, categories] = await Promise.all([
   getEmDashCollection("posts", { orderBy: { published_at: "desc" }, limit: 5 }),
@@ -49,6 +48,5 @@ const runningDays = firstPublished ? Math.max(1, Math.floor((day.getTime() - Dat
     <p>{loggedIn ? "欢迎回来，主人。" : "欢迎来访，随便看看吧。"}</p>
     <a class="sidebar-owner__login" href="/_emdash/admin">{loggedIn ? "进入站长后台" : "站长登录"}</a>
     <a href="/rss.xml">订阅文章 RSS</a>
-    <SocialLinks />
   </section>
 </aside>

@@ -1,0 +1,24 @@
+---
+import type { ContentEntry, InferCollectionData } from "emdash";
+import PostCard from "./PostCard.astro";
+import ThemeSidebar from "./ThemeSidebar.astro";
+
+interface Props {
+  posts: ContentEntry<InferCollectionData<"posts">>[];
+}
+
+const { posts } = Astro.props;
+---
+<section class="band section theme-home">
+  <div class="frame theme-home__layout">
+    <div>
+      <slot name="heading" />
+      <div class="theme-post-list">
+        {posts.map((post, index) => <PostCard post={post} variant="row" priority={index === 0} />)}
+        {posts.length === 0 && <slot name="empty" />}
+      </div>
+      <slot name="pagination" />
+    </div>
+    <ThemeSidebar />
+  </div>
+</section>

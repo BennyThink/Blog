@@ -1,0 +1,79 @@
+---
+import hljs from "highlight.js/lib/common";
+
+export interface Props {
+	node: {
+		_type: "code";
+		_key: string;
+		code: string;
+		language?: string;
+		filename?: string;
+	};
+}
+
+const { node } = Astro.props;
+if (!node?.code) return null;
+
+const { code, filename } = node;
+const language = node.language?.toLowerCase();
+const highlighted = language && hljs.getLanguage(language)
+	? hljs.highlight(code, { language, ignoreIllegals: true }).value
+	: hljs.highlightAuto(code).value;
+const lines = highlighted.split("\n");
+// highlight.js preserves the trailing newline as an empty line; avoid showing a phantom line number.
+if (lines.at(-1) === "" && code.endsWith("\n")) lines.pop();
+---
+
+<div class="emdash-code prettyprint" data-code-block>
+	{filename && <div class="emdash-code-filename">{filename}</div>}
+	<div class="code-toolbar">
+		{language && <span class="code-language">{language}</span>}
+		<button class="code-copy" type="button" aria-label="复制代码" title="复制代码" data-copy-code>
+			<svg class="copy-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>
+			<svg class="check-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+		</button>
+		<button class="code-wrap-toggle" type="button" aria-label="开启自动换行" title="开启自动换行" aria-pressed="false" data-toggle-wrap>
+			<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h15a3 3 0 0 1 0 6h-3m0 0 3-3m-3 3 3 3M4 17h8"/></svg>
+		</button>
+	</div>
+	<pre class={language ? `language-${language} linenums` : "linenums"}><code>{lines.map((line, index) => <span class="code-line" data-line={index + 1} set:html={line || "&#8203;"} />)}</code></pre>
+</div>
+
+<script>
+	function setupCodeBlocks() {
+		document.querySelectorAll<HTMLElement>("[data-code-block]").forEach((block) => {
+			const wrapButton = block.querySelector<HTMLButtonElement>("[data-toggle-wrap]");
+			if (wrapButton && !wrapButton.dataset.ready) {
+				wrapButton.dataset.ready = "true";
+				wrapButton.addEventListener("click", () => {
+					const wrapped = block.classList.toggle("is-wrapped");
+					wrapButton.setAttribute("aria-pressed", String(wrapped));
+					wrapButton.setAttribute("aria-label", wrapped ? "关闭自动换行" : "开启自动换行");
+					wrapButton.title = wrapped ? "关闭自动换行" : "开启自动换行";
+				});
+			}
+			const button = block.querySelector<HTMLButtonElement>("[data-copy-code]");
+			if (!button || button.dataset.ready) return;
+			button.dataset.ready = "true";
+			button.addEventListener("click", async () => {
+				const code = block.querySelector("pre code")?.textContent ?? "";
+				try {
+					await navigator.clipboard.writeText(code);
+					button.classList.add("is-copied");
+					button.setAttribute("aria-label", "已复制");
+					button.title = "已复制";
+					window.setTimeout(() => {
+						button.classList.remove("is-copied");
+						button.setAttribute("aria-label", "复制代码");
+						button.title = "复制代码";
+					}, 1800);
+				} catch {
+					button.setAttribute("aria-label", "复制失败");
+					button.title = "复制失败";
+				}
+			});
+		});
+	}
+
+	setupCodeBlocks();
+</script>

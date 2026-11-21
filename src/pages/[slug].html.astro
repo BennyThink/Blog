@@ -7,13 +7,14 @@ import {
 	getSiteSettings,
 } from "emdash";
 import { Image, PortableText } from "emdash/ui";
+import HighlightedCode from "../components/HighlightedCode.astro";
 import { Comments, CommentForm } from "emdash/ui/comments";
 import Base from "../layouts/Base.astro";
 import ThemeSidebar from "../components/ThemeSidebar.astro";
 import ArticleExtras from "../components/ArticleExtras.astro";
 import Byline from "../components/Byline.astro";
+import ArticleIcon from "../components/ArticleIcon.astro";
 import { formatDate } from "../utils/locale";
-import { getReadingTime } from "../utils/reading-time";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
 import { postPath } from "../utils/post-url";
 import "../styles/prose.css";
@@ -68,12 +69,58 @@ const seo = getSeoMeta(post, {
 const bylines = post.data.bylines ?? [];
 
 // Get reading time
-const readingTime = getReadingTime(post.data.content);
 
 // This post's tags are already hydrated onto the entry by getEmDashEntry —
 // no extra query needed.
 const tags = post.data.terms?.tag ?? [];
 const categories = post.data.terms?.category ?? [];
+const author = bylines[0]?.byline;
+const authorName = author?.displayName ?? "本站作者";
+const authorHref = author?.slug ? `/author/${author.slug}` : "/about-me";
+const extractText = (value: unknown): string => {
+	if (typeof value === "string") return value;
+	if (Array.isArray(value)) return value.map(extractText).join(" ");
+	if (value && typeof value === "object") return Object.entries(value as Record<string, unknown>)
+		.filter(([key]) => key === "text" || key === "children" || key === "content")
+		.map(([, child]) => extractText(child)).join(" ");
+	return "";
+};
+const contentText = extractText(post.data.content ?? []);
+const wordCount = (contentText.match(/[\p{L}\p{N}]+/gu) ?? []).length;
+const formatAge = (date: Date) => {
+	const years = Math.floor((Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+	return years > 0 ? `${years} 年前` : formatDate(date, "long");
+};
+
+// WordPress stores <!--nextpage--> markers between Portable Text blocks.
+const contentBlocks = post.data.content ?? [];
+const pageBreakIndex = contentBlocks.findIndex((block) =>
+	JSON.stringify(block).includes("<!--nextpage-->") || JSON.stringify(block).includes("&lt;!--nextpage--&gt;"),
+);
+const articlePages = pageBreakIndex >= 0
+	? (() => {
+		const pages: typeof contentBlocks[] = [[]];
+		for (const block of contentBlocks) {
+			const serialized = JSON.stringify(block);
+			if (serialized.includes("<!--nextpage-->") || serialized.includes("&lt;!--nextpage--&gt;")) {
+				pages.push([]);
+				continue;
+			}
+			pages[pages.length - 1].push(block);
+		}
+		return pages;
+	})()
+	: [contentBlocks];
+const requestedPage = Number(Astro.url.searchParams.get("page") ?? "1");
+const articlePage = Number.isInteger(requestedPage) ? Math.min(Math.max(requestedPage, 1), articlePages.length) : 1;
+const visibleContent = articlePages[articlePage - 1] ?? contentBlocks;
+const pageHref = (page: number) => page === 1 ? postPath(slug) : `${postPath(slug)}?page=${page}`;
+const visiblePageNumbers = Array.from({ length: articlePages.length }, (_, index) => index + 1)
+	.filter((page) => page === 1 || page === articlePages.length || Math.abs(page - articlePage) <= 2);
+const paginationItems = visiblePageNumbers.flatMap((page, index) => [
+	...(index > 0 && page - visiblePageNumbers[index - 1] > 1 ? [{ type: "ellipsis" as const }] : []),
+	{ type: "page" as const, page },
+]);
 
 // Fetch a few extra recent posts in case the current post is among them.
 const { entries: recentPosts, cacheHint: recentPostsCacheHint } =
@@ -102,7 +149,7 @@ const hasHeadings = (post.data.content ?? []).some(
 	(block) =>
 		block._type === "block" &&
 		"style" in block &&
-		(block.style === "h2" || block.style === "h3"),
+		block.style === "h2",
 );
 ---
 
@@ -122,29 +169,41 @@ const hasHeadings = (post.data.content ?? []).some(
     <div class="frame article-layout">
       <div class="article-column">
         <nav class="article-breadcrumbs" aria-label="面包屑">
-          <a href="/">首页</a><span aria-hidden="true"> / </span>
-          {categories.map(term => <><a href={`/category/${term.slug}`}>{term.label}</a><span aria-hidden="true"> / </span></>)}
-          <span aria-current="page">{post.data.title}</span>
+          <a href="/" title="返回首页" aria-label="返回首页"><ArticleIcon name="home" /></a><small aria-hidden="true"> &gt; </small>
+          {categories[0] && <><a href={`/category/${categories[0].slug}`}>{categories[0].label}</a><small aria-hidden="true"> &gt; </small></>}
+          <span class="muted" aria-current="page">{post.data.title}</span>
         </nav>
         <div class="article-paper">
           <header class="article-heading">
             <h1 {...post.edit.title}>{post.data.title}</h1>
-            <div class="article-dateline">
-              {categories.map(term => <a href={`/category/${term.slug}`}>{term.label}</a>)}
-              <Byline bylines={bylines} layout="inline" max={2} size="xs" />
-              {publishedAt && <time datetime={publishedAt.toISOString()}>{publishDate}</time>}
-              {typeof post.data.views === "number" && <span>{post.data.views} 次浏览</span>}
-              <span>约 {readingTime} 分钟</span>
-              <a href="#comments">评论</a>
+            <div class="article-dateline article-meta">
+              {categories[0] && <span id="mute-category" class="muted"><ArticleIcon name="category" /><a href={`/category/${categories[0].slug}`}> {categories[0].label}</a></span>}
+              <span class="muted"><ArticleIcon name="user" /> <a href={authorHref}>{authorName}</a></span>
+              {publishedAt && <time class="muted" datetime={publishedAt.toISOString()}><ArticleIcon name="clock" /> {formatAge(publishedAt)} ({formatDate(publishedAt, "long")})</time>}
+              {typeof post.data.views === "number" && <span class="muted"><ArticleIcon name="eye" /> {post.data.views} 次浏览</span>}
+              <span class="muted"><ArticleIcon name="words" /> {wordCount} 字</span>
+              <span class="muted"><ArticleIcon name="comments" /> <a href="#comments" data-comment-count>评论</a></span>
             </div>
           </header>
           <div class="article-reading">
             {post.data.featured_image && <div class="article-featured" {...post.edit.featured_image}>
               <Image image={post.data.featured_image} sizes="(min-width: 1000px) 820px, 94vw" priority />
             </div>}
-            <div class="prose" data-post-content><PortableText value={post.data.content} /></div>
+            <details class="article-toc article-toc--inline" hidden={!hasHeadings} data-toc>
+              <summary id="toc-title">文章目录</summary><ol class="toc__list" data-toc-list></ol>
+            </details>
+            <div class="prose" data-post-content><PortableText value={visibleContent} components={{ type: { code: HighlightedCode } }} /></div>
+            {articlePages.length > 1 && <nav class="fenye" aria-label="文章分页">
+              {articlePage > 1 && <a class="fenye__prev" href={pageHref(articlePage - 1)}><span>上一页</span></a>}
+              {paginationItems.map((item) => item.type === "ellipsis"
+                ? <span class="fenye__ellipsis" aria-hidden="true">…</span>
+                : item.page === articlePage
+                  ? <span aria-current="page">{item.page}</span>
+                  : <a href={pageHref(item.page)}><span>{item.page}</span></a>)}
+              {articlePage < articlePages.length && <a class="fenye__next" href={pageHref(articlePage + 1)}><span>下一页</span></a>}
+            </nav>}
             {tags.length > 0 && <ul class="chips article-tags" aria-label="文章标签">{tags.map(term => <li><a class="chip" href={`/tag/${term.slug}`}>{term.label}</a></li>)}</ul>}
-            <ArticleExtras bylines={bylines} canonicalUrl={seo.canonical ?? Astro.url.href} recommendations={recommendations} previous={previous ? {title: previous.data.title, href: postPath(previous.id)} : undefined} next={next ? {title: next.data.title, href: postPath(next.id)} : undefined} />
+            <ArticleExtras postId={post.data.id} likeCount={post.data.bigfa_ding} bylines={bylines} canonicalUrl={seo.canonical ?? Astro.url.href} recommendations={recommendations} previous={previous ? {title: previous.data.title, href: postPath(previous.id)} : undefined} next={next ? {title: next.data.title, href: postPath(next.id)} : undefined} />
             <section id="comments" class="post-comments article-comments" aria-labelledby="comments-title">
               <h2 id="comments-title">评论与讨论</h2>
               <CommentForm collection="posts" contentId={post.data.id} labels={{ name: "昵称", email: "邮箱", comment: "评论", submit: "发表评论", submitting: "正在提交…", published: "评论已发布", pending: "评论已提交，等待审核", networkError: "网络错误，请稍后重试。" }} />
@@ -154,16 +213,13 @@ const hasHeadings = (post.data.content ?? []).some(
         </div>
       </div>
       <aside class="article-sidebar" aria-label="文章侧栏">
-        <nav class="article-toc" aria-labelledby="toc-title" hidden={!hasHeadings} data-toc>
-          <h2 id="toc-title">文章目录</h2><ol class="toc__list" data-toc-list></ol>
-        </nav>
         <ThemeSidebar />
       </aside>
     </div>
   </article>
 
 	<script>
-		// Build the table of contents from the body's h2/h3 headings
+		// Build the collapsed table of contents from H2 headings.
 		function buildToc() {
 			const content = document.querySelector("[data-post-content]");
 			const toc = document.querySelector<HTMLElement>("[data-toc]");
@@ -171,7 +227,7 @@ const hasHeadings = (post.data.content ?? []).some(
 			if (!content || !toc || !list) return;
 
 			const headings = [
-				...content.querySelectorAll<HTMLHeadingElement>("h2, h3"),
+				...content.querySelectorAll<HTMLHeadingElement>("h2"),
 			];
 			toc.hidden = headings.length === 0;
 			if (headings.length === 0) return;
@@ -223,5 +279,65 @@ const hasHeadings = (post.data.content ?? []).some(
 		}
 
 		buildToc();
+		const commentCountLink = document.querySelector<HTMLAnchorElement>("[data-comment-count]");
+		const updateCommentCount = () => {
+			const count = document.querySelectorAll(".article-comments .ec-comment[data-comment-id]").length;
+			if (commentCountLink && count > 0) commentCountLink.textContent = `${count} 个评论`;
+		};
+		updateCommentCount();
+		if (commentCountLink) new MutationObserver(updateCommentCount).observe(document.querySelector(".article-comments")!, { childList: true, subtree: true });
+
+		// Add WordPress-style reply controls to EmDash's threaded comment list.
+		const commentSection = document.querySelector<HTMLElement>(".article-comments");
+		const enhanceComments = () => {
+		const commentForm = commentSection?.querySelector<HTMLFormElement>("[data-ec-comment-form]");
+		if (commentSection && commentForm) {
+			let parentInput = commentForm.querySelector<HTMLInputElement>('input[name="parentId"]');
+			if (!parentInput) {
+				parentInput = document.createElement("input");
+				parentInput.type = "hidden";
+				parentInput.name = "parentId";
+				commentForm.append(parentInput);
+			}
+			const commentField = commentForm.querySelector<HTMLTextAreaElement>('textarea[name="body"]');
+			let actions = commentForm.querySelector<HTMLElement>(".comment-replying-to");
+			if (!actions) {
+				actions = document.createElement("div");
+				actions.className = "comment-replying-to";
+				actions.hidden = true;
+				const cancel = document.createElement("button");
+				cancel.type = "button";
+				cancel.textContent = "取消回复";
+				cancel.addEventListener("click", () => {
+					parentInput!.value = "";
+					actions!.hidden = true;
+				});
+				actions.append("正在回复 ", Object.assign(document.createElement("strong"), { dataset: { replyName: "" } }), " ", cancel);
+				commentForm.prepend(actions);
+			}
+			commentSection.querySelectorAll<HTMLElement>(".ec-comment[data-comment-id]").forEach((comment) => {
+				const header = comment.querySelector<HTMLElement>(".ec-comment-header");
+				const id = comment.dataset.commentId;
+				if (!header || !id || header.querySelector(".comment-reply-button")) return;
+				const reply = document.createElement("button");
+				reply.type = "button";
+				reply.className = "comment-action comment-reply-button";
+				reply.textContent = "回复";
+				reply.addEventListener("click", () => {
+					parentInput!.value = id;
+					const name = comment.querySelector<HTMLElement>(".ec-comment-author")?.textContent?.trim() || "这条评论";
+					actions.querySelector<HTMLElement>("[data-reply-name]")!.textContent = name;
+					actions.hidden = false;
+					commentField?.focus();
+					commentForm.scrollIntoView({ behavior: "smooth", block: "center" });
+				});
+				header.append(reply);
+			});
+		}
+		};
+		if (commentSection) {
+			new MutationObserver(enhanceComments).observe(commentSection, { childList: true, subtree: true });
+			enhanceComments();
+		}
 	</script>
 </Base>
