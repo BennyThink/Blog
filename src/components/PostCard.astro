@@ -1,5 +1,6 @@
 ---
 import { postPath } from "../utils/post-url";
+import { getPostThumbnail } from "../utils/post-thumbnail";
 import { getCommentCount, type ContentEntry, type InferCollectionData } from "emdash";
 import { Image } from "emdash/ui";
 import { ChatCircleIcon, ClockIcon, EyeIcon, UserIcon } from "@phosphor-icons/react/ssr";
@@ -26,9 +27,7 @@ const {
 	priority = false,
 } = Astro.props;
 
-const firstImage = post.data.content?.find(block => block._type === "image") as { asset?: { url?: string; _ref?: string }; alt?: string } | undefined;
-const fallbackSrc = firstImage?.asset?.url || firstImage?.asset?._ref;
-const image = post.data.featured_image || (fallbackSrc && /^(https?:\/\/|\/)/.test(fallbackSrc) ? { id: firstImage?.asset?._ref || "", src: fallbackSrc, alt: firstImage?.alt || "" } : undefined) || { id: "wordpress-random-fallback", src: `/images/fallback/${Math.floor(Math.random() * 10) + 1}.jpg`, alt: "" };
+const image = getPostThumbnail(post.data);
 const excerpt = post.data.excerpt || extractText(post.data.content).replace(/\[\/?[a-zA-Z_][^\]]*\]/g, "").slice(0, 260);
 const Heading = `h${headingLevel}` as const;
 const href = postPath(post.id);

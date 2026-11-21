@@ -205,7 +205,7 @@ const hasHeadings = (post.data.content ?? []).some(
             {tags.length > 0 && <ul class="chips article-tags" aria-label="文章标签">{tags.map(term => <li><a class="chip" href={`/tag/${term.slug}`}>{term.label}</a></li>)}</ul>}
             <ArticleExtras postId={post.data.id} likeCount={post.data.bigfa_ding} bylines={bylines} canonicalUrl={seo.canonical ?? Astro.url.href} recommendations={recommendations} previous={previous ? {title: previous.data.title, href: postPath(previous.id)} : undefined} next={next ? {title: next.data.title, href: postPath(next.id)} : undefined} />
             <section id="comments" class="post-comments article-comments" aria-labelledby="comments-title">
-              <h2 id="comments-title">评论与讨论</h2>
+              <h2 id="comments-title">评论</h2>
               <CommentForm collection="posts" contentId={post.data.id} labels={{ name: "昵称", email: "邮箱", comment: "评论", submit: "发表评论", submitting: "正在提交…", published: "评论已发布", pending: "评论已提交，等待审核", networkError: "网络错误，请稍后重试。" }} />
               <Comments collection="posts" contentId={post.data.id} threaded locale="zh-CN" labels={{ heading: count => `${count} 条评论`, member: "站长" }} />
             </section>
@@ -213,7 +213,7 @@ const hasHeadings = (post.data.content ?? []).some(
         </div>
       </div>
       <aside class="article-sidebar" aria-label="文章侧栏">
-        <ThemeSidebar />
+        <ThemeSidebar currentPostId={post.data.id} />
       </aside>
     </div>
   </article>
@@ -292,6 +292,28 @@ const hasHeadings = (post.data.content ?? []).some(
 		const enhanceComments = () => {
 		const commentForm = commentSection?.querySelector<HTMLFormElement>("[data-ec-comment-form]");
 		if (commentSection && commentForm) {
+			const userInfo = commentForm.querySelector<HTMLElement>(".ec-comment-user-info");
+			if (userInfo && !userInfo.querySelector(".comt-title")) {
+				const title = document.createElement("div");
+				title.className = "comt-title";
+				const avatar = document.createElement("img");
+				avatar.className = "comt-avatar";
+				avatar.src = "/theme/author-avatar.png";
+				avatar.alt = "";
+				const author = document.createElement("div");
+				author.className = "comt-author";
+				author.append(document.createTextNode(commentForm.dataset.userName || "访客"));
+				const prompt = document.createElement("span");
+				prompt.textContent = "发表我的评论";
+				author.append(prompt);
+				const cancelReplyLink = document.createElement("a");
+				cancelReplyLink.className = "comt-cancel-reply";
+				cancelReplyLink.href = "#comments";
+				cancelReplyLink.textContent = "取消评论";
+				cancelReplyLink.hidden = true;
+				title.append(avatar, author, cancelReplyLink);
+				userInfo.replaceChildren(title);
+			}
 			let parentInput = commentForm.querySelector<HTMLInputElement>('input[name="parentId"]');
 			if (!parentInput) {
 				parentInput = document.createElement("input");
@@ -311,9 +333,20 @@ const hasHeadings = (post.data.content ?? []).some(
 				cancel.addEventListener("click", () => {
 					parentInput!.value = "";
 					actions!.hidden = true;
+					commentForm.querySelector<HTMLElement>(".comt-cancel-reply")?.setAttribute("hidden", "");
 				});
 				actions.append("正在回复 ", Object.assign(document.createElement("strong"), { dataset: { replyName: "" } }), " ", cancel);
 				commentForm.prepend(actions);
+			}
+			const cancelReplyLink = commentForm.querySelector<HTMLAnchorElement>(".comt-cancel-reply");
+			if (cancelReplyLink && cancelReplyLink.dataset.bound !== "true") {
+				cancelReplyLink.dataset.bound = "true";
+				cancelReplyLink.addEventListener("click", (event) => {
+					event.preventDefault();
+					parentInput!.value = "";
+					actions!.hidden = true;
+					cancelReplyLink.hidden = true;
+				});
 			}
 			commentSection.querySelectorAll<HTMLElement>(".ec-comment[data-comment-id]").forEach((comment) => {
 				const header = comment.querySelector<HTMLElement>(".ec-comment-header");
@@ -328,6 +361,7 @@ const hasHeadings = (post.data.content ?? []).some(
 					const name = comment.querySelector<HTMLElement>(".ec-comment-author")?.textContent?.trim() || "这条评论";
 					actions.querySelector<HTMLElement>("[data-reply-name]")!.textContent = name;
 					actions.hidden = false;
+					if (cancelReplyLink) cancelReplyLink.hidden = false;
 					commentField?.focus();
 					commentForm.scrollIntoView({ behavior: "smooth", block: "center" });
 				});
