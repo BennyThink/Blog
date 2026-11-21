@@ -14,11 +14,14 @@ if (Astro.cache?.enabled) {
 const allPosts = await getEmDashCollection("posts", { orderBy: { published_at: "desc" }, limit: 1000 });
 const postCount = allPosts.entries.length;
 const totalViews = allPosts.entries.reduce((sum, entry) => sum + (typeof entry.data.views === "number" ? entry.data.views : 0), 0);
+const firstPublished = allPosts.entries.reduce<Date | null>((earliest, entry) => {
+  const publishedAt = entry.data.publishedAt ? new Date(entry.data.publishedAt) : null;
+  return publishedAt && (!earliest || publishedAt < earliest) ? publishedAt : earliest;
+}, null);
 const loggedIn = Boolean(Astro.locals.user);
 const date = new Date();
 const day = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-const start = new Date("2020-01-01T00:00:00Z");
-const runningDays = Math.max(1, Math.floor((day.getTime() - start.getTime()) / 86_400_000));
+const runningDays = firstPublished ? Math.max(1, Math.floor((day.getTime() - Date.UTC(firstPublished.getUTCFullYear(), firstPublished.getUTCMonth(), firstPublished.getUTCDate())) / 86_400_000)) : 0;
 ---
 <aside class="theme-sidebar" aria-label="博客侧栏">
   <section class="sidebar-panel sidebar-recommendations">
@@ -37,7 +40,7 @@ const runningDays = Math.max(1, Math.floor((day.getTime() - start.getTime()) / 8
       <div><dt>文章</dt><dd>{postCount}</dd></div>
       <div><dt>分类</dt><dd>{categories.data.length}</dd></div>
       <div><dt>浏览</dt><dd>{totalViews}</dd></div>
-      <div><dt>运行</dt><dd>{runningDays} 天</dd></div>
+      <div><dt>建站</dt><dd>{runningDays} 天</dd></div>
     </dl>
   </section>
 

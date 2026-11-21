@@ -1,5 +1,5 @@
 This is an EmDash site -- a CMS built on Astro with a full admin UI.
-
+原版WordPress主题请看 WordPress-root/wp-content/themes/WordPressGit-master
 ## Commands
 
 ```bash
