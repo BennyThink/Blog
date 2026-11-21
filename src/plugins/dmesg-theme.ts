@@ -44,6 +44,10 @@ export function createPlugin() {
         return fragments;
       },
       "comment:beforeCreate": async (event, ctx) => {
+        if (event.comment.collection === "pages") {
+          const page = await ctx.content!.get("pages", event.comment.contentId);
+          if (page?.slug !== "message") return false;
+        }
         // Only CMS users exist; do not apply visitor filters to the owner.
         if (event.comment.authorUserId) return;
         const defaults: CommentRules = { requireChinese: false, blockedKeywords: "", blockedEmails: "", blockedIpHashes: "", blockLinks: false, maxLinkLength: 0 };

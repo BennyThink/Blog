@@ -7,6 +7,7 @@ import {
 	getTaxonomyTermsWithCacheHint,
 } from "emdash";
 import { PortableText } from "emdash/ui";
+import Guestbook from "../components/Guestbook.astro";
 import HighlightedCode from "../components/HighlightedCode.astro";
 import Base from "../layouts/Base.astro";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
@@ -57,6 +58,9 @@ const seo = getSeoMeta(page, {
 					<div class="prose" {...page.edit.content}>
 						<PortableText value={page.data.content} components={{ type: { code: HighlightedCode } }} />
 					</div>
+					{slug === "message" && page.data.status === "published" && (
+						<Guestbook contentId={page.data.id} publishedAt={page.data.publishedAt} />
+					)}
 				</div>
 			</div>
 		</div>

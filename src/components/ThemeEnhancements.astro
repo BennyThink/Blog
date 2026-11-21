@@ -1,5 +1,5 @@
 ---
-import { ArrowUpIcon } from "@phosphor-icons/react/ssr";
+import { ArrowUpIcon, DesktopIcon, MoonIcon, SunIcon } from "@phosphor-icons/react/ssr";
 import { getThemeSettings } from "../theme/settings";
 const settings = await getThemeSettings(Astro.locals, Astro.request);
 ---
@@ -7,6 +7,12 @@ const settings = await getThemeSettings(Astro.locals, Astro.request);
 
 <button type="button" class="back-to-top" data-back-to-top aria-label="返回顶部" title="返回顶部" hidden>
   <ArrowUpIcon size={16} weight="bold" aria-hidden="true" />
+</button>
+
+<button type="button" class="theme-mode-toggle" data-theme-mode-toggle aria-label="主题：跟随系统" title="主题：跟随系统">
+  <DesktopIcon className="theme-mode-toggle__system" size={20} weight="regular" aria-hidden="true" />
+  <SunIcon className="theme-mode-toggle__light" size={20} weight="regular" aria-hidden="true" />
+  <MoonIcon className="theme-mode-toggle__dark" size={20} weight="regular" aria-hidden="true" />
 </button>
 
 <dialog class="image-lightbox" data-lightbox-dialog aria-label="查看大图" tabindex="-1" autofocus>
@@ -17,6 +23,34 @@ const settings = await getThemeSettings(Astro.locals, Astro.request);
 <script>
   import pangu from "../theme/pangu.js";
   const features = document.querySelector<HTMLElement>("[data-theme-features]")!;
+  const themeToggle = document.querySelector<HTMLButtonElement>("[data-theme-mode-toggle]");
+  const themeModes = ["system", "light", "dark"] as const;
+  const themeModeNames = { system: "跟随系统", light: "浅色模式", dark: "深色模式" };
+  const readThemeMode = () => {
+    try {
+      const saved = localStorage.getItem("theme-mode");
+      return saved === "light" || saved === "dark" ? saved : "system";
+    } catch { return "system"; }
+  };
+  const applyThemeMode = (mode: typeof themeModes[number]) => {
+    document.documentElement.classList.toggle("light", mode === "light");
+    document.documentElement.classList.toggle("dark", mode === "dark");
+    if (themeToggle) {
+      themeToggle.dataset.mode = mode;
+      themeToggle.setAttribute("aria-label", `主题：${themeModeNames[mode]}`);
+      themeToggle.title = `主题：${themeModeNames[mode]}（点击切换）`;
+    }
+  };
+  let themeMode = readThemeMode();
+  applyThemeMode(themeMode);
+  themeToggle?.addEventListener("click", () => {
+    themeMode = themeModes[(themeModes.indexOf(themeMode) + 1) % themeModes.length];
+    try {
+      if (themeMode === "system") localStorage.removeItem("theme-mode");
+      else localStorage.setItem("theme-mode", themeMode);
+    } catch { /* The current page still changes when storage is unavailable. */ }
+    applyThemeMode(themeMode);
+  });
   const backToTop = document.querySelector<HTMLButtonElement>("[data-back-to-top]");
   if (backToTop) {
     const updateBackToTop = () => backToTop.toggleAttribute("hidden", window.scrollY <= 200);

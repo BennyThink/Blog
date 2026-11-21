@@ -1,0 +1,112 @@
+---
+import { CommentForm, Comments } from "emdash/ui/comments";
+
+interface Props {
+	collection: "posts" | "pages";
+	contentId: string;
+	open?: boolean;
+}
+
+const { collection, contentId, open = true } = Astro.props;
+const isGuestbook = collection === "pages";
+const title = isGuestbook ? "发表留言" : "评论";
+const labels = isGuestbook
+	? { comment: "留言", submit: "提交留言", published: "留言已发布", pending: "留言已提交，等待审核" }
+	: { comment: "评论", submit: "发表评论", published: "评论已发布", pending: "评论已提交，等待审核" };
+---
+
+<section id="comments" class="post-comments article-comments" aria-labelledby="comments-title">
+	<h2 id="comments-title">{open ? title : "留言"}</h2>
+	{open && <CommentForm collection={collection} contentId={contentId} labels={{
+		name: "昵称", email: "邮箱", submitting: "正在提交…", networkError: "网络错误，请稍后重试。", ...labels
+	}} />}
+	<slot>
+		<Comments collection={collection} contentId={contentId} threaded locale="zh-CN" labels={{ heading: count => `${count} 条评论`, member: "站长" }} />
+	</slot>
+</section>
+
+<script>
+	function enableReplies(section: HTMLElement) {
+		const form = section.querySelector<HTMLFormElement>("[data-ec-comment-form]");
+		if (!form) return;
+
+		const parentInput = document.createElement("input");
+		parentInput.type = "hidden";
+		parentInput.name = "parentId";
+		parentInput.disabled = true;
+		form.append(parentInput);
+
+		const actions = document.createElement("div");
+		actions.className = "comment-replying-to";
+		actions.hidden = true;
+		const replyName = document.createElement("strong");
+		const cancel = document.createElement("button");
+		cancel.type = "button";
+		cancel.textContent = "取消回复";
+		actions.append("正在回复 ", replyName, " ", cancel);
+		form.prepend(actions);
+
+		const userInfo = form.querySelector(".ec-comment-user-info");
+		const cancelLink = document.createElement("a");
+		if (userInfo) {
+			const title = document.createElement("div");
+			title.className = "comt-title";
+			const avatar = new Image();
+			avatar.className = "comt-avatar";
+			avatar.src = "/theme/author-avatar.png";
+			avatar.alt = "";
+			const author = document.createElement("div");
+			author.className = "comt-author";
+			const prompt = document.createElement("span");
+			prompt.textContent = form.querySelector(".ec-comment-form-submit")?.textContent?.trim() ?? "";
+			author.append(form.dataset.userName || "访客", prompt);
+			cancelLink.className = "comt-cancel-reply";
+			cancelLink.href = "#comments";
+			cancelLink.textContent = "取消回复";
+			cancelLink.hidden = true;
+			title.append(avatar, author, cancelLink);
+			userInfo.replaceChildren(title);
+		}
+
+		const clearReply = () => {
+			parentInput.value = "";
+			parentInput.disabled = true;
+			actions.hidden = true;
+			cancelLink.hidden = true;
+		};
+		cancel.addEventListener("click", clearReply);
+		cancelLink.addEventListener("click", event => {
+			event.preventDefault();
+			clearReply();
+		});
+
+		const status = form.querySelector(".ec-comment-form-status");
+		if (status) {
+			new MutationObserver(() => {
+				if (status.classList.contains("ec-comment-form-success")) clearReply();
+			}).observe(status, { attributes: true, attributeFilter: ["class"] });
+		}
+
+		for (const comment of section.querySelectorAll<HTMLElement>(".ec-comment[data-comment-id]")) {
+			const header = comment.querySelector(":scope > .ec-comment-header");
+			const id = comment.dataset.commentId;
+			if (!header || !id) continue;
+			const reply = document.createElement("button");
+			reply.type = "button";
+			reply.className = "comment-action comment-reply-button";
+			reply.textContent = "回复";
+			reply.addEventListener("click", () => {
+				parentInput.value = id;
+				parentInput.disabled = false;
+				replyName.textContent = header.querySelector(".ec-comment-author")?.textContent?.trim() || "这条评论";
+				actions.hidden = false;
+				cancelLink.hidden = false;
+				form.querySelector<HTMLTextAreaElement>('textarea[name="body"]')?.focus({ preventScroll: true });
+				form.scrollIntoView({ behavior: "smooth", block: "center" });
+			});
+			header.append(reply);
+		}
+	}
+
+	document.querySelectorAll<HTMLElement>(".article-comments").forEach(enableReplies);
+</script>

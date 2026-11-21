@@ -100,6 +100,7 @@ const year = new Date().getFullYear();
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="icon" href="/favicon.ico" type="image/x-icon" />
 		<Font cssVariable="--font-body" preload />
 		<Font cssVariable="--font-mono" />
 		<title>{fullTitle}</title>
@@ -114,15 +115,12 @@ const year = new Date().getFullYear();
 		/>
 		<script is:inline>
 			// Apply an explicit theme choice immediately to prevent flash.
-			// With no cookie, color-scheme: light dark follows the OS.
+			// Without a stored override, color-scheme follows the OS.
 			(function () {
-				var row = document.cookie.split("; ").find(function (item) {
-					return item.startsWith("theme=");
-				});
-				var theme = row ? row.slice(6) : null;
-				if (theme === "dark" || theme === "light") {
-					document.documentElement.classList.add(theme);
-				}
+				try {
+					var theme = localStorage.getItem("theme-mode");
+					if (theme === "dark" || theme === "light") document.documentElement.classList.add(theme);
+				} catch {}
 			})();
 		</script>
 	</head>

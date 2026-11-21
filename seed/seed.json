@@ -49,6 +49,7 @@
 			"label": "Pages",
 			"labelSingular": "Page",
 			"urlPattern": "/{slug}",
+			"commentsEnabled": true,
 			"supports": ["drafts", "revisions", "preview", "search", "seo"],
 			"fields": [
 				{

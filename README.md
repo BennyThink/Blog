@@ -15,6 +15,8 @@ docker compose up -d --build
 
 后台：http://localhost:4321/_emdash/admin
 
+留言板使用 `/message` 页面及其关联评论。Docker 启动时会更新已有数据库的留言配置。直接用 `npm run dev` 启动恢复后的本地数据库时，先运行 `node scripts/migrate-post-urls.mjs`。
+
 ---
 
 # EmDash Blog Template
