@@ -4,6 +4,7 @@ import { defineConfig, fontProviders, sessionDrivers } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 import { Features } from "lightningcss";
+import { fileURLToPath } from "node:url";
 
 export default defineConfig({
 	output: "server",
@@ -31,7 +32,12 @@ export default defineConfig({
 	integrations: [
 		react(),
 		emdash({
-			database: sqlite({ url: "file:./data/sqlite/emdash.db" }),
+			plugins: [{
+                id: "dmesg-theme", version: "0.1.0", format: "native",
+                entrypoint: fileURLToPath(new URL("./src/plugins/dmesg-theme.ts", import.meta.url)),
+                options: {},
+            }],
+			database: sqlite({ url: process.env.EMDASH_DATABASE_URL || "file:./data/sqlite/emdash.db" }),
 			storage: local({
 				directory: "./data/uploads",
 				baseUrl: "/_emdash/api/media/file",

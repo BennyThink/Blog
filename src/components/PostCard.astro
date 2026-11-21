@@ -4,7 +4,7 @@ import type { ContentEntry, InferCollectionData } from "emdash";
 import { Image } from "emdash/ui";
 import Byline from "./Byline.astro";
 import { formatDate } from "../utils/locale";
-import { formatReadingTime, getReadingTime } from "../utils/reading-time";
+import { extractText, formatReadingTime, getReadingTime } from "../utils/reading-time";
 
 interface Props {
 	post: ContentEntry<InferCollectionData<"posts">>;
@@ -24,13 +24,18 @@ const {
 	priority = false,
 } = Astro.props;
 
+const firstImage = post.data.content?.find(block => block._type === "image") as { asset?: { url?: string; _ref?: string }; alt?: string } | undefined;
+const fallbackSrc = firstImage?.asset?.url || firstImage?.asset?._ref;
+const image = post.data.featured_image || (fallbackSrc && /^(https?:\/\/|\/)/.test(fallbackSrc) ? { id: firstImage?.asset?._ref || "", src: fallbackSrc, alt: firstImage?.alt || "" } : undefined);
+const excerpt = post.data.excerpt || extractText(post.data.content).replace(/\[\/?[a-zA-Z_][^\]]*\]/g, "").slice(0, 260);
 const Heading = `h${headingLevel}` as const;
 const href = postPath(post.id);
 const titleId = `post-${variant}-${post.id}`;
-const title = post.data.title || "Untitled";
+const title = post.data.title || "无标题";
 const publishedAt = post.data.publishedAt ?? null;
 const readingTime = formatReadingTime(getReadingTime(post.data.content));
 const bylines = post.data.bylines ?? [];
+const categories = post.data.terms?.category ?? [];
 const visibleTags = tags.slice(0, variant === "card" ? 2 : 3);
 
 const sizes = {
@@ -41,12 +46,12 @@ const sizes = {
 ---
 
 <article class:list={["post", `post--${variant}`]}>
-	<a href={href} class="post__media" tabindex="-1" aria-hidden="true">
+	<a href={href} class:list={["post__media", { "post__media--empty": !image }]} tabindex="-1" aria-hidden="true">
 		{
-			post.data.featured_image ? (
+			image ? (
 				<div class="post__image" {...post.edit.featured_image}>
 					<Image
-						image={post.data.featured_image}
+						image={image}
 						sizes={sizes}
 						priority={priority}
 					/>
@@ -68,20 +73,21 @@ const sizes = {
 				}
 				<span>{readingTime}</span>
 			</span>
+			{categories.length > 0 && <span class="post__category">{categories[0].label}</span>}
 			<Heading class="post__title" id={titleId} {...post.edit.title}>
 				{title}
 			</Heading>
 			{
-				post.data.excerpt && (
+				excerpt && (
 					<p class="post__excerpt" {...post.edit.excerpt}>
-						{post.data.excerpt}
+						{excerpt}
 					</p>
 				)
 			}
 			{
 				variant === "feature" && (
 					<span class="post__cta arrow-link" aria-hidden="true">
-						Read article
+						阅读全文
 						<svg
 							viewBox="0 0 24 24"
 							fill="none"

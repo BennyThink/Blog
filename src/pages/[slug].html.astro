@@ -10,6 +10,7 @@ import {
 import { Image, PortableText, WidgetArea } from "emdash/ui";
 import { Comments, CommentForm } from "emdash/ui/comments";
 import Base from "../layouts/Base.astro";
+import ArticleExtras from "../components/ArticleExtras.astro";
 import Byline from "../components/Byline.astro";
 import PostCard from "../components/PostCard.astro";
 import { formatDate } from "../utils/locale";
@@ -72,6 +73,7 @@ const readingTime = getReadingTime(post.data.content);
 // This post's tags are already hydrated onto the entry by getEmDashEntry —
 // no extra query needed.
 const tags = post.data.terms?.tag ?? [];
+const categories = post.data.terms?.category ?? [];
 
 // Fetch a few extra recent posts in case the current post is among them.
 const { entries: recentPosts, cacheHint: recentPostsCacheHint } =
@@ -126,7 +128,11 @@ const hasHeadings = (post.data.content ?? []).some(
 		<header class="intro post-header">
 			<div class="frame">
 				<div class="post-header__inner">
-					<a href="/posts" class="arrow-link back-link">
+					<nav class="article-breadcrumbs" aria-label="面包屑">
+  <a href="/">首页</a><span aria-hidden="true"> / </span><a href="/posts">文章</a>
+  {categories.map(term => <><span aria-hidden="true"> / </span><a href={`/category/${term.slug}`}>{term.label}</a></>)}
+</nav>
+<a href="/posts" class="arrow-link back-link">
 						<svg
 							viewBox="0 0 24 24"
 							fill="none"
@@ -139,7 +145,7 @@ const hasHeadings = (post.data.content ?? []).some(
 							<path d="M19 12H5"></path>
 							<path d="m12 19-7-7 7-7"></path>
 						</svg>
-						All posts
+						全部文章
 					</a>
 					{
 						tags.length > 0 && (
@@ -174,7 +180,7 @@ const hasHeadings = (post.data.content ?? []).some(
 									</time>
 								)
 							}
-							<span>{readingTime} min read</span>
+							<span>约 {readingTime} 分钟</span>
 						</p>
 					</div>
 				</div>
@@ -205,7 +211,7 @@ const hasHeadings = (post.data.content ?? []).some(
 							bylines.length > 0 && (
 								<div class="post-fact">
 									<dt class="eyebrow">
-										{bylines.length === 1 ? "Author" : "Authors"}
+										{bylines.length === 1 ? "作者" : "作者"}
 									</dt>
 									<dd>
 										<Byline bylines={bylines} layout="list" />
@@ -216,7 +222,7 @@ const hasHeadings = (post.data.content ?? []).some(
 						{
 							publishedAt && (
 								<div class="post-fact">
-									<dt class="eyebrow">Published</dt>
+									<dt class="eyebrow">发布于</dt>
 									<dd>
 										<time datetime={publishedAt.toISOString()}>
 											{publishDate}
@@ -226,8 +232,8 @@ const hasHeadings = (post.data.content ?? []).some(
 							)
 						}
 						<div class="post-fact">
-							<dt class="eyebrow">Reading time</dt>
-							<dd>{readingTime} min</dd>
+							<dt class="eyebrow">阅读时间</dt>
+							<dd>{readingTime} 分钟</dd>
 						</div>
 					</dl>
 				</div>
@@ -237,10 +243,12 @@ const hasHeadings = (post.data.content ?? []).some(
 						<PortableText value={post.data.content} />
 					</div>
 
-					<section class="post-comments" aria-labelledby="comments-title">
-						<h2 id="comments-title" class="eyebrow">Discussion</h2>
-						<Comments collection="posts" contentId={post.data.id} threaded />
-						<CommentForm collection="posts" contentId={post.data.id} />
+					<ArticleExtras title={post.data.title} bylines={bylines} />
+
+					<section id="comments" class="post-comments" aria-labelledby="comments-title">
+						<h2 id="comments-title" class="eyebrow">讨论</h2>
+						<Comments collection="posts" contentId={post.data.id} threaded locale="zh-CN" labels={{ heading: count => `${count} 条评论`, member: "站长" }} />
+						<CommentForm collection="posts" contentId={post.data.id} labels={{ name: "昵称", email: "邮箱", comment: "评论", submit: "发表评论", submitting: "正在提交…", published: "评论已发布", pending: "评论已提交，等待审核", networkError: "网络错误，请稍后重试。" }} />
 					</section>
 				</div>
 
@@ -251,12 +259,12 @@ const hasHeadings = (post.data.content ?? []).some(
 						hidden={!hasHeadings}
 						data-toc
 					>
-						<h2 id="toc-title" class="eyebrow">On this page</h2>
+						<h2 id="toc-title" class="eyebrow">文章目录</h2>
 						<ol class="toc__list" data-toc-list></ol>
 					</nav>
 
 					<aside class="post-widgets" aria-labelledby="widgets-title">
-						<h2 id="widgets-title" class="sr-only">More from the blog</h2>
+						<h2 id="widgets-title" class="sr-only">更多内容</h2>
 						<WidgetArea name="sidebar" />
 					</aside>
 				</div>
@@ -270,10 +278,10 @@ const hasHeadings = (post.data.content ?? []).some(
 				<div class="frame related">
 					<div class="section-head">
 						<h2 id="continue-reading" class="section-head__title">
-							Continue reading
+							继续阅读
 						</h2>
 						<a href="/posts" class="arrow-link">
-							All posts
+							全部文章
 							<svg
 								viewBox="0 0 24 24"
 								fill="none"
@@ -317,6 +325,7 @@ const hasHeadings = (post.data.content ?? []).some(
 			toc.hidden = headings.length === 0;
 			if (headings.length === 0) return;
 
+			list.replaceChildren();
 			const links = new Map<Element, HTMLAnchorElement>();
 			headings.forEach((heading, index) => {
 				if (!heading.id) {
@@ -978,7 +987,7 @@ const hasHeadings = (post.data.content ?? []).some(
 		font-variant-numeric: tabular-nums;
 	}
 
-	/* Continue reading */
+	/* 继续阅读 */
 	.related {
 		container-type: inline-size;
 	}

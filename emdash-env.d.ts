@@ -11,6 +11,10 @@ export interface Page {
   status: string;
   title: string;
   content?: PortableTextBlock[];
+  excerpt?: string;
+  featured_image?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };
+  views?: number;
+  classic_editor_remember?: string;
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
@@ -27,6 +31,13 @@ export interface Post {
   featured_image?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };
   content?: PortableTextBlock[];
   excerpt?: string;
+  views?: number;
+  bigfa_ding?: number;
+  classic_editor_remember?: string;
+  git_baidu_submit?: number;
+  baidu_submit?: number;
+  git_weibo_sync?: number;
+  enclosure?: string;
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;

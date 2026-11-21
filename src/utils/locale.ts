@@ -7,7 +7,7 @@ import { getI18nConfig } from "emdash";
  */
 export function getSiteLocale(): string | undefined {
 	const locale = getI18nConfig()?.defaultLocale;
-	if (!locale) return undefined;
+	if (!locale) return "zh-CN";
 	try {
 		return Intl.DateTimeFormat.supportedLocalesOf(locale)[0];
 	} catch {
@@ -18,7 +18,7 @@ export function getSiteLocale(): string | undefined {
 
 /** Formats a date in the site's locale, or in US English without one. */
 export function formatDate(date: Date, month: "long" | "short"): string {
-	return date.toLocaleDateString(getSiteLocale() ?? "en-US", {
+	return date.toLocaleDateString(getSiteLocale() ?? "zh-CN", {
 		year: "numeric",
 		month,
 		day: "numeric",

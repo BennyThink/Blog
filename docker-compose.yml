@@ -10,6 +10,9 @@ services:
     environment:
       EMDASH_SITE_URL: ${EMDASH_SITE_URL:-http://localhost:4321}
       EMDASH_ENCRYPTION_KEY: ${EMDASH_ENCRYPTION_KEY:?Generate .env with npm run secrets:init first}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      COMMENT_BLOCKED_IPS: ${COMMENT_BLOCKED_IPS:-}
     volumes:
       - type: bind
         source: ./data

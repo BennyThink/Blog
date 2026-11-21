@@ -7,6 +7,11 @@ import {
 	EmDashBodyEnd,
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
+import MenuItems from "../components/MenuItems.astro";
+import ThemeBar from "../components/ThemeBar.astro";
+import SocialLinks from "../components/SocialLinks.astro";
+import ThemeEnhancements from "../components/ThemeEnhancements.astro";
+import { getThemeSettings } from "../theme/settings";
 import LiveSearch from "emdash/ui/search";
 import { Font } from "astro:assets";
 import { getSiteLocale } from "../utils/locale";
@@ -54,11 +59,13 @@ if (Astro.cache?.enabled) {
 const { siteTitle, siteTagline, siteLogo } = resolveBlogSiteIdentity(
 	settingsResult.data,
 );
+const theme = await getThemeSettings(Astro.locals, Astro.request);
 const titleIncludesSiteName =
 	title === siteTitle ||
 	title.endsWith(` | ${siteTitle}`) ||
 	title.endsWith(` — ${siteTitle}`);
-const fullTitle = titleIncludesSiteName ? title : `${title} — ${siteTitle}`;
+const bareTitle = titleIncludesSiteName && title !== siteTitle ? title.slice(0, -(siteTitle.length + 3)) : title;
+const fullTitle = bareTitle === siteTitle ? siteTitle : `${bareTitle}${theme.titleSeparator}${siteTitle}`;
 
 const menu = menuResult.data;
 const menuItems = menu?.items ?? [];
@@ -71,7 +78,7 @@ const pageCtx = createPublicPageContext({
 	pageType: type,
 	title: fullTitle,
 	pageTitle: pageTitle ?? title,
-	description,
+	description: description || theme.description || siteTagline,
 	canonical,
 	image,
 	content,
@@ -86,23 +93,7 @@ const isLoggedIn = !!Astro.locals.user;
 const TRAILING_SLASH = /\/$/;
 const currentPath = Astro.url.pathname.replace(TRAILING_SLASH, "") || "/";
 
-/** "page" for the current page, "true" for its parent section (e.g. Posts on a post). */
-function navCurrent(url: string): "page" | "true" | undefined {
-	let target: URL;
-	try {
-		target = new URL(url, Astro.url);
-	} catch {
-		return undefined;
-	}
-	if (target.origin !== Astro.url.origin || target.hash) return undefined;
-	if (target.search && target.search !== Astro.url.search) return undefined;
-	const path = target.pathname.replace(TRAILING_SLASH, "") || "/";
-	if (path === currentPath) return "page";
-	if (path !== "/" && currentPath.startsWith(`${path}/`)) return "true";
-	return undefined;
-}
-
-const lang = getSiteLocale() ?? "en";
+const lang = getSiteLocale() ?? "zh-CN";
 const monogram = [...siteTitle.trim()][0]?.toUpperCase() ?? "";
 const year = new Date().getFullYear();
 ---
@@ -138,7 +129,7 @@ const year = new Date().getFullYear();
 	</head>
 	<body>
 		<EmDashBodyStart page={pageCtx} />
-		<a href="#main" class="skip-link">Skip to content</a>
+		<a href="#main" class="skip-link">跳转到正文</a>
 		<header class="site-header">
 			<div class="frame site-header__inner">
 				<a href="/" class="brand">
@@ -165,22 +156,7 @@ const year = new Date().getFullYear();
 					menuItems.length > 0 && (
 						<nav class="site-nav" aria-label="Main">
 							<ul>
-								{menuItems.map((item) => (
-									<li>
-										<a
-											href={item.url}
-											target={item.target}
-											rel={
-												item.target === "_blank"
-													? "noopener noreferrer"
-													: undefined
-											}
-											aria-current={navCurrent(item.url)}
-										>
-											{item.label}
-										</a>
-									</li>
-								))}
+								<MenuItems items={menuItems} currentPath={currentPath} />
 							</ul>
 						</nav>
 					)
@@ -200,7 +176,7 @@ const year = new Date().getFullYear();
 							></path></svg
 						>
 						<LiveSearch
-							placeholder="Search"
+							placeholder={theme.searchPlaceholder}
 							class="site-search__field"
 							inputClass="site-search-input"
 							resultsClass="site-search-results"
@@ -254,6 +230,8 @@ const year = new Date().getFullYear();
 			})();
 		</script>
 
+		<ThemeBar />
+
 		<main id="main" tabindex="-1">
 			<slot />
 		</main>
@@ -282,6 +260,7 @@ const year = new Date().getFullYear();
 						}
 					</a>
 					{siteTagline && <p class="site-footer__tagline">{siteTagline}</p>}
+					<SocialLinks />
 				</div>
 				{
 					menuItems.length > 0 && (
@@ -310,7 +289,7 @@ const year = new Date().getFullYear();
 					)
 				}
 				<div class="site-footer__col">
-					<h2 class="eyebrow">Connect</h2>
+					<h2 class="eyebrow">订阅</h2>
 					<ul class="site-footer__links">
 						<li>
 							<a href="/rss.xml">
@@ -328,7 +307,7 @@ const year = new Date().getFullYear();
 										cy="19"
 										r="1"></circle></svg
 								>
-								RSS feed
+								RSS 订阅
 							</a>
 						</li>
 					</ul>
@@ -340,7 +319,7 @@ const year = new Date().getFullYear();
 			<div class="band site-footer__bottom">
 				<div class="frame site-footer__bottom-inner">
 					<p class="site-footer__meta">
-						{`© ${year} ${siteTitle}.`} Powered by{" "}
+						{`© ${year} ${siteTitle}.`} 由{" "}
 						<a href="https://emdashcms.com">EmDash</a>
 					</p>
 					<div class="theme-switcher" role="group" aria-label="Color theme">
@@ -1494,6 +1473,7 @@ const year = new Date().getFullYear();
 				searchInput.focus();
 			});
 		</script>
+		<ThemeEnhancements />
 		<EmDashBodyEnd page={pageCtx} />
 	</body>
 </html>
