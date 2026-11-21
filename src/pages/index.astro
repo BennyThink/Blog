@@ -21,7 +21,7 @@ const paginationItems = pageNumbers.flatMap((page, index) => [
   { ellipsis: false as const, page },
 ]);
 ---
-<Base title={siteTitle} description={siteTagline}>
+<Base title={siteTitle} homePage={currentPage} description={siteTagline}>
   <ThemePostList posts={pagePosts}>
     <h1 slot="heading" class="sr-only">{siteTitle} · 最新文章</h1>
     <p slot="empty" class="empty-state">暂无文章。</p>

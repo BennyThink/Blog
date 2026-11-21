@@ -22,6 +22,7 @@ import "../styles/theme.css";
 
 interface Props {
 	title: string;
+	homePage?: number;
 	pageTitle?: string | null;
 	description?: string | null;
 	image?: string | null;
@@ -37,6 +38,7 @@ interface Props {
 
 const {
 	title,
+	homePage,
 	pageTitle,
 	description,
 	image,
@@ -66,7 +68,11 @@ const titleIncludesSiteName =
 	title.endsWith(` | ${siteTitle}`) ||
 	title.endsWith(` — ${siteTitle}`);
 const bareTitle = titleIncludesSiteName && title !== siteTitle ? title.slice(0, -(siteTitle.length + 3)) : title;
-const fullTitle = bareTitle === siteTitle ? siteTitle : `${bareTitle}${theme.titleSeparator}${siteTitle}`;
+const defaultTitle = bareTitle === siteTitle ? siteTitle : `${bareTitle}${theme.titleSeparator}${siteTitle}`;
+const homeTitle = [siteTitle, settingsResult.data?.tagline?.trim()].filter(Boolean).join(theme.titleSeparator);
+const fullTitle = homePage === undefined
+	? defaultTitle
+	: `${homeTitle}${homePage > 1 ? `-Page ${homePage}` : ""}`;
 
 const menu = menuResult.data;
 const menuItems = menu?.items ?? [];
