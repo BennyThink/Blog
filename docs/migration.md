@@ -27,14 +27,23 @@ docker compose logs --tail=100 emdash
 
 `.env` 中的加密密钥不会提交到 Git，也不会进入镜像；Compose 在启动时注入。备份数据库时也应安全保存该密钥。端口可用 `EMDASH_PORT` 改动，改动时将 `EMDASH_SITE_URL` 一并更新到新的 localhost 地址，再重建镜像。正式域名同样需要在构建和运行时保持一致。
 
-首次使用空 data 目录时，入口脚本通过官方 `emdash seed` CLI 导入示例文章及图片。图片下载到本地 uploads 目录；首次启动需要访问示例图片源。数据库已存在时不重新导入，避免重建容器覆盖编辑内容。初始化中断时检查日志并手动执行相同 seed 命令（默认冲突策略为 skip），不要删除已有数据目录。
+首次使用空 data 目录时，入口脚本通过官方 `emdash seed` CLI 导入示例文章及图片。图片下载到本地 data/uploads 目录；首次启动需要访问示例图片源。数据库已存在时不重新导入，避免重建容器覆盖编辑内容。初始化中断时检查日志并手动执行相同 seed 命令（默认冲突策略为 skip），不要删除已有数据目录。
 
 ## 数据位置与重建
 
+仅使用一个 bind mount：`./data:/app/data`。
+
+```text
+data/
+├── sqlite/      # emdash.db 及 WAL/SHM
+├── uploads/     # 本地媒体
+└── sessions/    # Astro 登录会话
+```
+
 | 内容 | 容器路径 | 宿主机目录（相对项目根目录） |
 | --- | --- | --- |
-| SQLite 与 WAL/SHM | `/app/data/emdash.db` 及同目录附属文件 | `./data` |
-| 本地媒体 | `/app/uploads` | `./uploads` |
+| SQLite 与 WAL/SHM | `/app/data/sqlite/emdash.db` 及同目录附属文件 | `./data/sqlite` |
+| 本地媒体 | `/app/data/uploads` | `./data/uploads` |
 
 Astro 登录会话保存在 `data/sessions/`，与 SQLite 共用 data bind mount。入口脚本确保目录存在；不要改回镜像内的默认缓存目录，否则非 root 容器可能无法保存登录会话。
 
@@ -47,9 +56,9 @@ docker compose down
 docker compose up -d
 ```
 
-配置文件为 `docker-compose.yml`，使用 bind mount，没有声明 named volumes。`docker compose down` 不会删除本地数据；不要手动删除 `data/` 或 `uploads/`。移动项目时需一起复制这两个目录和 `.env`。
+配置文件为 `docker-compose.yml`，使用 bind mount，没有声明 named volumes。`docker compose down` 不会删除本地数据；不要手动删除 `data/`。移动项目时需一起复制整个 `data/` 目录和 `.env`。
 
-备份时先停止容器，再归档 `data/` 与 `uploads/`，保证 SQLite 主文件和 WAL/SHM 一致；恢复到本地目录后使用对应应用版本和原 `.env` 密钥启动。Linux 宿主机需确保这两个目录对容器 UID/GID 1000:1000 可写；容器继续使用非 root 的 node 用户。
+备份时先停止容器，再归档整个 `data/`，保证 SQLite 主文件和 WAL/SHM 一致；恢复到本地目录后使用对应应用版本和原 `.env` 密钥启动。Linux 宿主机需确保 data 目录及子目录对容器 UID/GID 1000:1000 可写；容器继续使用非 root 的 node 用户。
 
 本次已在停机后把原 named volumes 的数据复制到本地目录，再切换到 bind mount。旧 named volumes 保留为回退副本，当前配置不再使用它们。
 

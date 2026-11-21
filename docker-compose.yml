@@ -14,9 +14,6 @@ services:
       - type: bind
         source: ./data
         target: /app/data
-      - type: bind
-        source: ./uploads
-        target: /app/uploads
     restart: unless-stopped
     init: true
     healthcheck:

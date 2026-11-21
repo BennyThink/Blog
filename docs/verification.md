@@ -33,4 +33,15 @@
 
 显式配置 `sessionDrivers.fsLite({ base: "./data/sessions" })`，入口脚本创建该目录，使会话使用现有 data bind mount。保留管理员、Passkey 和内容，重新构建容器。真实指纹登录仍由所有者重试确认。
 
+## 统一 data 目录后复验
+
+当前仅挂载 `./data:/app/data`，子目录为 `sqlite/`、`uploads/`、`sessions/`。SQLite 主文件路径为 `data/sqlite/emdash.db`。
+
+- 先停止容器，再移动数据库主文件、WAL/SHM、全部媒体及原会话；1,379 个文件逐一核对 SHA-256，搬移前后一致。
+- 当前本地已包含所有者导入的内容，验证结果为 249 篇文章、10 个页面、1,375 条媒体记录；这些数量含原有示例数据，不代表旧站完整迁移验收通过。
+- `npm run verify:docker` 再次通过：实际替换容器，记录哈希、媒体哈希及随机数据库标记保持一致，首页、后台及其资源 HTTP 200。
+- 1 个管理员与 1 条 Passkey 记录仍存在；非 root 用户执行 Astro 会话写入、跨请求读取及测试会话清理通过。
+- Astro 类型检查 0 错误、0 警告；SQLite integrity_check 为 ok。Docker inspect 确认仅一个 bind mount。
+- 验收脚本改为比较完整记录的 SHA-256，避免真实文章较多时将正文全部输出并超出子进程缓冲区。
+
 没有连接或变更线上 WordPress，也没有读取旧 WordPress 配置或导入真实内容。

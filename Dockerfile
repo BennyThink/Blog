@@ -15,7 +15,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/seed ./seed
 COPY scripts/container-entrypoint.sh /usr/local/bin/emdash-entrypoint
-RUN mkdir -p data uploads && chown node:node data uploads \
+RUN mkdir -p data/sqlite data/uploads data/sessions && chown -R node:node data \
     && chmod +x /usr/local/bin/emdash-entrypoint
 USER node
 EXPOSE 4321

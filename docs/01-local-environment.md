@@ -11,7 +11,7 @@
 - [x] SQLite 数据库与本地媒体存储。
 - [x] 多阶段 Dockerfile，非 root 用户运行。
 - [x] `docker-compose.yml`，仅绑定本机端口 4321。
-- [x] bind mount：`./data:/app/data`、`./uploads:/app/uploads`。
+- [x] bind mount：`./data:/app/data`（唯一挂载）。
 - [x] 将原 named volumes 的现有示例数据停机复制到本地目录。
 - [x] 首页、后台初始化资源、容器重建与数据持久化检查通过。
 - [x] WordPress 目录排除在镜像之外，线上旧站保持原样。
@@ -27,7 +27,7 @@ npm run verify:docker
 
 首页：`http://localhost:4321/`；后台：`http://localhost:4321/_emdash/admin`。
 
-数据库位于 `data/emdash.db`，媒体位于 `uploads/`。两个目录均已忽略提交；Linux 部署时需保证容器 UID/GID 1000:1000 有写权限。
+数据库位于 `data/sqlite/emdash.db`，媒体位于 `data/uploads/`，会话位于 `data/sessions/`。整个 data 目录已忽略提交；Linux 部署时需保证容器 UID/GID 1000:1000 有写权限。
 
 ## 验收与遗留
 

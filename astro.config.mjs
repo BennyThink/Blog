@@ -31,9 +31,9 @@ export default defineConfig({
 	integrations: [
 		react(),
 		emdash({
-			database: sqlite({ url: "file:./data/emdash.db" }),
+			database: sqlite({ url: "file:./data/sqlite/emdash.db" }),
 			storage: local({
-				directory: "./uploads",
+				directory: "./data/uploads",
 				baseUrl: "/_emdash/api/media/file",
 			}),
 		}),

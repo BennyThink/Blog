@@ -36,19 +36,20 @@ const snapshotCode = `
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-const db = new DatabaseSync('/app/data/emdash.db');
+const db = new DatabaseSync('/app/data/sqlite/emdash.db');
 const posts = db.prepare('SELECT * FROM ec_posts ORDER BY id').all();
 const pages = db.prepare('SELECT * FROM ec_pages ORDER BY id').all();
 const media = db.prepare('SELECT * FROM media ORDER BY id').all();
-const files = media.map(m => ({key:m.storage_key, hash:createHash('sha256').update(readFileSync('/app/uploads/'+m.storage_key)).digest('hex')}));
+const files = media.map(m => ({key:m.storage_key, hash:createHash('sha256').update(readFileSync('/app/data/uploads/'+m.storage_key)).digest('hex')}));
 const marker = db.prepare("SELECT value FROM options WHERE name = 'migration:persistence_probe'").get();
-console.log(JSON.stringify({integrity:db.prepare('PRAGMA integrity_check').get(),posts,pages,media,files,marker}));
+const recordHash = row => createHash('sha256').update(JSON.stringify(row)).digest('hex');
+console.log(JSON.stringify({integrity:db.prepare('PRAGMA integrity_check').get(),posts:posts.map(recordHash),pages:pages.map(recordHash),media:media.map(recordHash),files,marker}));
 db.close();`;
 await ready();
 await pages();
 const token = randomUUID();
 // A unique value not present in the seed proves the volume survived recreation.
-inside(`import {DatabaseSync} from 'node:sqlite'; const db=new DatabaseSync('/app/data/emdash.db'); db.prepare("INSERT OR REPLACE INTO options(name,value) VALUES ('migration:persistence_probe',?)").run(JSON.stringify(process.argv[1])); db.close();`, token);
+inside(`import {DatabaseSync} from 'node:sqlite'; const db=new DatabaseSync('/app/data/sqlite/emdash.db'); db.prepare("INSERT OR REPLACE INTO options(name,value) VALUES ('migration:persistence_probe',?)").run(JSON.stringify(process.argv[1])); db.close();`, token);
 const before = JSON.parse(inside(snapshotCode));
 assert.ok(before.posts.length > 0, 'Sample posts must exist');
 assert.ok(before.media.length > 0, 'Sample media must exist in local storage');
@@ -67,5 +68,5 @@ assert.notEqual(compose('ps', '-q', 'emdash'), oldId, 'Container must actually b
 await pages();
 assert.deepEqual(JSON.parse(inside(snapshotCode)), before, 'Database and media must survive unchanged');
 assert.equal(await hashMedia(), before.files[0].hash);
-inside(`import {DatabaseSync} from 'node:sqlite'; const db=new DatabaseSync('/app/data/emdash.db'); db.prepare("DELETE FROM options WHERE name='migration:persistence_probe'").run(); db.close();`);
+inside(`import {DatabaseSync} from 'node:sqlite'; const db=new DatabaseSync('/app/data/sqlite/emdash.db'); db.prepare("DELETE FROM options WHERE name='migration:persistence_probe'").run(); db.close();`);
 console.log(JSON.stringify({result:'PASS',home:200,admin:200,adminBundle:200,posts:before.posts.length,pages:before.pages.length,media:before.media.length,sqliteIntegrity:'ok',containerReplaced:true,uniqueDatabaseMarkerPreserved:true,allMediaHashesPreserved:true}, null, 2));
