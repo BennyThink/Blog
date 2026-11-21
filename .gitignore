@@ -5,3 +5,4 @@ db_data/
 logs/
 certs/
 /pages/frontend/node_modules/
+/node_modules/
