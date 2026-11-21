@@ -12,3 +12,6 @@
 !scripts/
 !scripts/container-entrypoint.sh
 !scripts/migrate-post-urls.mjs
+
+!public/
+!public/**

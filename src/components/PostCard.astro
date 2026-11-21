@@ -45,6 +45,25 @@ const sizes = {
 }[variant];
 ---
 
+{variant === "row" ? (
+  <article class="legacy-post">
+    <header class="legacy-post__heading">
+      {categories[0] && <a class="legacy-post__category" href={`/category/${categories[0].slug}`}>{categories[0].label}</a>}
+      <Heading class="legacy-post__title" {...post.edit.title}><a href={href}>{title}</a></Heading>
+    </header>
+    <div class="legacy-post__preview">
+      {image && <a href={href} class="legacy-post__image" tabindex="-1" aria-hidden="true"><Image image={image} sizes="(max-width: 600px) 110px, 200px" priority={priority} /></a>}
+      {excerpt && <p class="legacy-post__excerpt">{excerpt}</p>}
+      <a class="legacy-post__read" href={href}>继续阅读 »</a>
+    </div>
+    <footer class="legacy-post__meta">
+      <Byline bylines={bylines} size="xs" max={2} />
+      {publishedAt && <time datetime={publishedAt.toISOString()}>{formatDate(publishedAt, "short")}</time>}
+      <span>{readingTime}</span>
+      {typeof post.data.views === "number" && <span>{post.data.views} 次浏览</span>}
+    </footer>
+  </article>
+) : (
 <article class:list={["post", `post--${variant}`]}>
 	<a href={href} class:list={["post__media", { "post__media--empty": !image }]} tabindex="-1" aria-hidden="true">
 		{
@@ -127,6 +146,7 @@ const sizes = {
 		}
 	</div>
 </article>
+)}
 
 <style>
 	.post {

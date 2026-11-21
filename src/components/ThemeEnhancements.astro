@@ -1,0 +1,65 @@
+---
+import { getThemeSettings } from "../theme/settings";
+const settings = await getThemeSettings(Astro.locals, Astro.request);
+---
+<div hidden data-theme-features data-pangu={settings.pangu} data-lightbox={settings.lightbox} data-transparent-nav={settings.transparentNav} data-comment-placeholder={settings.commentPlaceholder}></div>
+
+<dialog class="image-lightbox" data-lightbox-dialog aria-label="查看大图">
+  <button type="button" data-lightbox-close aria-label="关闭大图">关闭 ×</button>
+  <figure><img data-lightbox-image alt="" /><figcaption data-lightbox-caption></figcaption></figure>
+</dialog>
+<script>
+  import pangu from "../theme/pangu.js";
+  const features = document.querySelector<HTMLElement>("[data-theme-features]")!;
+  if (features.dataset.transparentNav === "true") document.documentElement.classList.add("transparent-nav");
+  const header = document.querySelector(".site-header");
+  const observer = new IntersectionObserver(([entry]) => header?.classList.toggle("is-scrolled", !entry.isIntersecting));
+  const marker = document.createElement("div"); marker.className = "header-scroll-marker"; document.body.prepend(marker); observer.observe(marker);
+  document.querySelectorAll<HTMLTextAreaElement>(".ec-comment-form textarea[name=body]").forEach(el => { el.placeholder = features.dataset.commentPlaceholder || ""; });
+  const space = () => {
+    if (features.dataset.pangu === "true") { pangu?.spacingElementByClassName("prose"); pangu?.spacingElementByClassName("post__title"); pangu?.spacingElementByClassName("legacy-post"); }
+  };
+  if (document.readyState === "complete") space(); else window.addEventListener("load", space, { once: true });
+  const dialog = document.querySelector<HTMLDialogElement>("[data-lightbox-dialog]")!;
+  const preview = dialog.querySelector<HTMLImageElement>("[data-lightbox-image]")!;
+  const caption = dialog.querySelector<HTMLElement>("[data-lightbox-caption]")!;
+  if (features.dataset.lightbox === "true") document.querySelectorAll<HTMLImageElement>(".prose img").forEach(image => {
+    if (image.closest("a, button")) return;
+    const anchor = document.createElement("a"); anchor.href = image.currentSrc || image.src;
+    if (!["https:", "http:"].includes(new URL(anchor.href).protocol)) return;
+    anchor.className = "image-zoom"; anchor.setAttribute("aria-label", `查看大图：${image.alt || "正文图片"}`);
+    image.replaceWith(anchor); anchor.append(image);
+    anchor.addEventListener("click", event => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault(); preview.src = image.currentSrc || image.src; preview.alt = image.alt; caption.textContent = image.alt;
+      dialog.showModal();
+    });
+  });
+  dialog.querySelector("[data-lightbox-close]")?.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
+  // Approved-comment endpoint returns derived image URLs only, never author email or private moderation data.
+  document.querySelectorAll<HTMLElement>(".ec-comment[data-comment-id]").forEach(async comment => {
+    const heading = comment.querySelector<HTMLElement>(".ec-comment-header"); if (!heading) return;
+    const fallback = document.createElement("span"); fallback.className = "comment-avatar"; fallback.setAttribute("aria-hidden", "true");
+    const mosaic = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    mosaic.setAttribute("viewBox", "0 0 5 5"); mosaic.setAttribute("width", "28"); mosaic.setAttribute("height", "28");
+    for (let x = 0; x < 3; x++) for (let y = 0; y < 5; y++) {
+      if (Math.random() < .5) continue;
+      for (const col of new Set([x, 4 - x])) {
+        const cell = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        cell.setAttribute("x", String(col)); cell.setAttribute("y", String(y)); cell.setAttribute("width", "1"); cell.setAttribute("height", "1"); cell.setAttribute("fill", "currentColor"); mosaic.append(cell);
+      }
+    }
+    fallback.append(mosaic); heading.prepend(fallback);
+    try {
+      const response = await fetch(`/_emdash/api/plugins/dmesg-theme/avatar?id=${encodeURIComponent(comment.dataset.commentId!)}`);
+      if (!response.ok) return;
+      const { data } = await response.json(); if (!data) return;
+      const image = new Image(36, 36); image.alt = ""; image.className = "comment-avatar"; image.referrerPolicy = "no-referrer";
+      let triedGravatar = !data.qq;
+      image.addEventListener("load", () => fallback.replaceWith(image));
+      image.addEventListener("error", () => { if (!triedGravatar) { triedGravatar = true; image.src = data.gravatar; } else image.replaceWith(fallback); });
+      image.src = data.qq || data.gravatar;
+    } catch { /* Local initials remain available offline. */ }
+  });
+</script>

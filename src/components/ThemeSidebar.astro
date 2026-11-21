@@ -1,0 +1,15 @@
+---
+import { getTaxonomyTermsWithCacheHint, getWidgetAreaWithCacheHint } from "emdash";
+import { WidgetArea } from "emdash/ui";
+import SocialLinks from "./SocialLinks.astro";
+const widgets = await getWidgetAreaWithCacheHint("sidebar");
+if (Astro.cache?.enabled) Astro.cache.set(widgets.cacheHint);
+const hasCategories = widgets.data?.widgets.some(widget => widget.componentId === "core:categories");
+const result = await getTaxonomyTermsWithCacheHint("category", { includeCounts: true });
+if (Astro.cache?.enabled) Astro.cache.set(result.cacheHint);
+---
+<aside class="theme-sidebar" aria-label="博客侧栏">
+  {!hasCategories && result.data.length > 0 && <section class="sidebar-panel"><h2>文章分类</h2><ul class="sidebar-categories">{result.data.map(term => <li><a href={`/category/${term.slug}`}>{term.label}</a>{typeof term.count === "number" && <span>{term.count}</span>}</li>)}</ul></section>}
+  <div class="sidebar-widgets"><WidgetArea name="sidebar" /></div>
+  <section class="sidebar-panel"><h2>主人我在这 (=￣ω￣=)</h2><a href="/_emdash/admin">站长后台</a><a href="/rss.xml">订阅文章 RSS</a><SocialLinks /></section>
+</aside>

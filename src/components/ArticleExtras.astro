@@ -1,0 +1,55 @@
+---
+import QRCode from "qrcode";
+import type { ContentBylineCredit } from "emdash";
+import Byline from "./Byline.astro";
+import { getThemeSettings } from "../theme/settings";
+interface Props { title: string; bylines: ContentBylineCredit[]; }
+const { title, bylines } = Astro.props;
+const settings = await getThemeSettings(Astro.locals, Astro.request);
+const url = new URL(Astro.url.pathname, Astro.url.origin).href;
+const qr = await QRCode.toString(url, { type: "svg", margin: 2, width: 180 });
+const shareUrl = encodeURIComponent(url), shareTitle = encodeURIComponent(title);
+---
+<div class="article-extras">
+  <details class="article-share">
+    <summary>分享这篇文章</summary>
+    <div class="article-share__links">
+      <button type="button" data-native-share data-title={title} data-url={url}>系统分享</button>
+      <button type="button" data-copy-link data-url={url}>复制链接</button>
+      <a href={`https://t.me/share/url?url=${shareUrl}&text=${shareTitle}`} target="_blank" rel="noopener noreferrer">Telegram</a>
+      <a href={`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTitle}`} target="_blank" rel="noopener noreferrer">Twitter</a>
+      <a href={`https://service.weibo.com/share/share.php?url=${shareUrl}&title=${shareTitle}`} target="_blank" rel="noopener noreferrer">微博</a>
+      <a href={`https://connect.qq.com/widget/shareqq/index.html?url=${shareUrl}&title=${shareTitle}`} target="_blank" rel="noopener noreferrer">QQ</a>
+      <a href={`https://www.douban.com/share/service?href=${shareUrl}&name=${shareTitle}`} target="_blank" rel="noopener noreferrer">豆瓣</a>
+      <a href={`https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=${shareUrl}&title=${shareTitle}`} target="_blank" rel="noopener noreferrer">QQ 空间</a>
+      <a href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`} target="_blank" rel="noopener noreferrer">Facebook</a>
+      <a href={`https://www.reddit.com/submit?url=${shareUrl}&title=${shareTitle}`} target="_blank" rel="noopener noreferrer">Reddit</a>
+      <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`} target="_blank" rel="noopener noreferrer">LinkedIn</a>
+      <a href={`https://www.tumblr.com/widgets/share/tool?canonicalUrl=${shareUrl}&title=${shareTitle}`} target="_blank" rel="noopener noreferrer">Tumblr</a>
+      <a href={`https://www.evernote.com/clip.action?url=${shareUrl}&title=${shareTitle}`} target="_blank" rel="noopener noreferrer">Evernote</a>
+      <a href={`https://www.pinterest.com/pin/create/button/?url=${shareUrl}&description=${shareTitle}`} target="_blank" rel="noopener noreferrer">Pinterest</a>
+      <a href={`mailto:?subject=${shareTitle}&body=${shareUrl}`}>Email</a>
+    </div>
+    <details class="share-wechat"><summary>微信扫码分享</summary><div class="share-qr" set:html={qr}></div></details>
+    <p class="share-status" role="status" data-share-status></p>
+  </details>
+  {bylines.length > 0 && <section class="article-authors" aria-label="关于作者">
+    <Byline bylines={bylines} layout="list" />
+    {bylines.map(({ byline }) => byline.bio && <p>{byline.bio}</p>)}
+  </section>}
+  {settings.copyrightEnabled && <aside class="article-copyright" aria-label="文章版权">
+    <h2>版权声明</h2>
+    <p>{settings.copyright}</p>
+    {bylines.length > 0 && <p>作者：{bylines.map(b => b.byline.displayName).join("、")}</p>}
+    <p>原文链接：<a href={url}>{url}</a></p>
+  </aside>}
+</div>
+<script>
+  document.querySelectorAll<HTMLButtonElement>("[data-copy-link], [data-native-share]").forEach(button => button.addEventListener("click", async () => {
+    const status = button.closest("details")?.querySelector("[data-share-status]");
+    try {
+      if (button.hasAttribute("data-native-share") && navigator.share) await navigator.share({ title: button.dataset.title, url: button.dataset.url });
+      else { await navigator.clipboard.writeText(button.dataset.url!); if (status) status.textContent = "链接已复制"; }
+    } catch (error) { if (status && !(error instanceof DOMException && error.name === "AbortError")) status.textContent = "请从浏览器地址栏复制链接。"; }
+  }));
+</script>
