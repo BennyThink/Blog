@@ -1,6 +1,6 @@
 This is an EmDash site -- a CMS built on Astro with a full admin UI.
 原版WordPress主题请看 WordPress-root/wp-content/themes/WordPressGit-master
-线上对比 https://dmesg.app/nfc-clone.html
+线上对比 https://dmesg.app/
 
 ## Commands
 
