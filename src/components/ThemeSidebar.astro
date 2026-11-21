@@ -1,15 +1,51 @@
 ---
-import { getTaxonomyTermsWithCacheHint, getWidgetAreaWithCacheHint } from "emdash";
-import { WidgetArea } from "emdash/ui";
+import { getEmDashCollection, getTaxonomyTermsWithCacheHint } from "emdash";
 import SocialLinks from "./SocialLinks.astro";
-const widgets = await getWidgetAreaWithCacheHint("sidebar");
-if (Astro.cache?.enabled) Astro.cache.set(widgets.cacheHint);
-const hasCategories = widgets.data?.widgets.some(widget => widget.componentId === "core:categories");
-const result = await getTaxonomyTermsWithCacheHint("category", { includeCounts: true });
-if (Astro.cache?.enabled) Astro.cache.set(result.cacheHint);
+
+const [recent, categories] = await Promise.all([
+  getEmDashCollection("posts", { orderBy: { published_at: "desc" }, limit: 5 }),
+  getTaxonomyTermsWithCacheHint("category", { includeCounts: true }),
+]);
+if (Astro.cache?.enabled) {
+  Astro.cache.set(recent.cacheHint);
+  Astro.cache.set(categories.cacheHint);
+}
+
+const allPosts = await getEmDashCollection("posts", { orderBy: { published_at: "desc" }, limit: 1000 });
+const postCount = allPosts.entries.length;
+const totalViews = allPosts.entries.reduce((sum, entry) => sum + (typeof entry.data.views === "number" ? entry.data.views : 0), 0);
+const loggedIn = Boolean(Astro.locals.user);
+const date = new Date();
+const day = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+const start = new Date("2020-01-01T00:00:00Z");
+const runningDays = Math.max(1, Math.floor((day.getTime() - start.getTime()) / 86_400_000));
 ---
 <aside class="theme-sidebar" aria-label="博客侧栏">
-  {!hasCategories && result.data.length > 0 && <section class="sidebar-panel"><h2>文章分类</h2><ul class="sidebar-categories">{result.data.map(term => <li><a href={`/category/${term.slug}`}>{term.label}</a>{typeof term.count === "number" && <span>{term.count}</span>}</li>)}</ul></section>}
-  <div class="sidebar-widgets"><WidgetArea name="sidebar" /></div>
-  <section class="sidebar-panel"><h2>主人我在这 (=￣ω￣=)</h2><a href="/_emdash/admin">站长后台</a><a href="/rss.xml">订阅文章 RSS</a><SocialLinks /></section>
+  <section class="sidebar-panel sidebar-recommendations">
+    <h2>你可能喜欢</h2>
+    {recent.entries.length > 0 ? <ol>{recent.entries.map(post => <li><a href={`/${post.id}.html`}>{post.data.title}</a></li>)}</ol> : <p class="sidebar-empty">还没有文章。</p>}
+  </section>
+
+  <section class="sidebar-panel">
+    <h2>文章分类</h2>
+    {categories.data.length > 0 ? <ul class="sidebar-categories">{categories.data.map(term => <li><a href={`/category/${term.slug}`}>{term.label}</a><span>{term.count ?? 0}</span></li>)}</ul> : <p class="sidebar-empty">暂无分类。</p>}
+  </section>
+
+  <section class="sidebar-panel sidebar-stats">
+    <h2>网站统计</h2>
+    <dl>
+      <div><dt>文章</dt><dd>{postCount}</dd></div>
+      <div><dt>分类</dt><dd>{categories.data.length}</dd></div>
+      <div><dt>浏览</dt><dd>{totalViews}</dd></div>
+      <div><dt>运行</dt><dd>{runningDays} 天</dd></div>
+    </dl>
+  </section>
+
+  <section class="sidebar-panel sidebar-owner">
+    <h2>主人我在这 (=￣ω￣=)</h2>
+    <p>{loggedIn ? "欢迎回来，主人。" : "欢迎来访，随便看看吧。"}</p>
+    <a class="sidebar-owner__login" href="/_emdash/admin">{loggedIn ? "进入站长后台" : "站长登录"}</a>
+    <a href="/rss.xml">订阅文章 RSS</a>
+    <SocialLinks />
+  </section>
 </aside>

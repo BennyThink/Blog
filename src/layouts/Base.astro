@@ -49,7 +49,7 @@ const {
 } = Astro.props;
 const [settingsResult, menuResult] = await Promise.all([
 	getSiteSettingsWithCacheHint(),
-	getMenuWithCacheHint("primary"),
+	getMenuWithCacheHint("menu"),
 ]);
 if (Astro.cache?.enabled) {
 	Astro.cache.set(settingsResult.cacheHint);

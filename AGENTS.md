@@ -112,3 +112,8 @@ CSS variables worth knowing (see `tokens.css` for the full list):
 - Don't use stock blog copy ("Welcome to my blog", "Stay tuned for more"). Write a real tagline that says what this blog is about.
 - Don't seed the home page with three identical placeholder posts. If you only have one real post, show one real post.
 - Comments are enabled on posts and rendered on the post detail page. Configure moderation before publishing the site, or remove `commentsEnabled` and the comments UI together.
+
+
+## Owner override · 2026-11-21
+
+For post detail pages, the owner explicitly chose the original WordPress two-column layout, superseding this template's three-column/article-rails requirements above. Use a white article column on the left and a 360px sidebar on desktop. Put author, publication date, views and reading time below the title. On narrow screens, move the sidebar below the article. Keep frame/band alignment and the other CMS rules.
