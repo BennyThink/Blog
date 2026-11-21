@@ -13,6 +13,11 @@ try {
   } else if (posts?.url_pattern !== '/{slug}.html') {
     throw new Error('Unexpected posts URL pattern; review before migrating');
   }
+  const pages = await db.selectFrom('_emdash_collections').select('url_pattern').where('slug', '=', 'pages').executeTakeFirst();
+  if (pages?.url_pattern === '/pages/{slug}') {
+    await registry.updateCollection('pages', { urlPattern: '/{slug}' });
+    console.log('Updated pages URL pattern to /{slug}');
+  }
   const widgets = await db.selectFrom('_emdash_widgets').select(['id', 'component_props']).where('component_id', '=', 'core:recent-posts').execute();
   for (const widget of widgets) {
     const props = JSON.parse(widget.component_props || '{}');

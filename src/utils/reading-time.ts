@@ -45,6 +45,24 @@ export function extractText(blocks: PortableTextBlock[] | undefined): string {
 		.join(" ");
 }
 
+/** Match the WordPress theme's count_words(): count visible content characters, excluding whitespace. */
+export function getContentCharacterCount(blocks: PortableTextBlock[] | undefined): number {
+	const collect = (value: unknown): string => {
+		if (Array.isArray(value)) return value.map(collect).join("");
+		if (!value || typeof value !== "object") return "";
+		const record = value as Record<string, unknown>;
+		let result = "";
+		if (typeof record.text === "string") result += record.text;
+		if (typeof record.code === "string") result += record.code;
+		for (const key of ["children", "content", "rows", "cells", "blocks"]) {
+			if (record[key]) result += collect(record[key]);
+		}
+		return result;
+	};
+	const text = collect(blocks).replace(/<[^>]*>/g, "");
+	return [...text.replace(/\s/gu, "")].length;
+}
+
 /**
  * Calculate reading time in minutes from Portable Text content
  */

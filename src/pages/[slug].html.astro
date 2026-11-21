@@ -15,6 +15,7 @@ import ArticleExtras from "../components/ArticleExtras.astro";
 import Byline from "../components/Byline.astro";
 import ArticleIcon from "../components/ArticleIcon.astro";
 import { formatDate } from "../utils/locale";
+import { getContentCharacterCount } from "../utils/reading-time";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
 import { postPath } from "../utils/post-url";
 import "../styles/prose.css";
@@ -77,16 +78,7 @@ const categories = post.data.terms?.category ?? [];
 const author = bylines[0]?.byline;
 const authorName = author?.displayName ?? "本站作者";
 const authorHref = author?.slug ? `/author/${author.slug}` : "/about-me";
-const extractText = (value: unknown): string => {
-	if (typeof value === "string") return value;
-	if (Array.isArray(value)) return value.map(extractText).join(" ");
-	if (value && typeof value === "object") return Object.entries(value as Record<string, unknown>)
-		.filter(([key]) => key === "text" || key === "children" || key === "content")
-		.map(([, child]) => extractText(child)).join(" ");
-	return "";
-};
-const contentText = extractText(post.data.content ?? []);
-const wordCount = (contentText.match(/[\p{L}\p{N}]+/gu) ?? []).length;
+const wordCount = getContentCharacterCount(post.data.content);
 const formatAge = (date: Date) => {
 	const years = Math.floor((Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
 	return years > 0 ? `${years} 年前` : formatDate(date, "long");

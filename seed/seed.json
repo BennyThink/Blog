@@ -48,7 +48,7 @@
 			"slug": "pages",
 			"label": "Pages",
 			"labelSingular": "Page",
-			"urlPattern": "/pages/{slug}",
+			"urlPattern": "/{slug}",
 			"supports": ["drafts", "revisions", "preview", "search", "seo"],
 			"fields": [
 				{
@@ -141,7 +141,7 @@
 				{
 					"type": "custom",
 					"label": "About",
-					"url": "/pages/about"
+					"url": "/about"
 				},
 				{
 					"type": "custom",

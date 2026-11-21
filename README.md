@@ -43,7 +43,7 @@ A clean, minimal blog built with [EmDash](https://github.com/emdash-cms/emdash).
 | Category archive | `/category/:slug` |
 | Tag archive | `/tag/:slug` |
 | Search | `/search` |
-| Static pages | `/pages/:slug` |
+| Static pages | `/:slug` |
 | 404 | fallback |
 
 ## Screenshots

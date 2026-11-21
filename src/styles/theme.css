@@ -75,7 +75,7 @@ a { text-underline-offset: .2em; }
 .sidebar-categories span { color: var(--color-muted); white-space: nowrap; }
 .sidebar-recommendations ul { display: grid; margin: 0; }
 .sidebar-recommendations li + li { border-top: 1px solid var(--color-border); }
-.sidebar-recommendations li a { display: grid; grid-template-columns: 100px minmax(0, 1fr); align-items: center; gap: .65rem; padding: .65rem 0; color: var(--color-text); }
+.sidebar-recommendations li a { display: grid; grid-template-columns: 100px minmax(0, 1fr); align-items: center; gap: .65rem; padding: .65rem 0; color: #00a67c; }
 .sidebar-recommendations li:first-child a { padding-top: 0; }
 .sidebar-recommendations li:last-child a { padding-bottom: 0; }
 .sidebar-recommendations .sidebar-recommendations__image { display: block; width: 100px; height: 64px; object-fit: cover; border-radius: var(--radius-sm); }
@@ -83,7 +83,7 @@ a { text-underline-offset: .2em; }
 .sidebar-recommendations__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; line-height: 1.45; }
 .sidebar-recommendations__meta { display: flex; flex-wrap: wrap; gap: 0 .5rem; color: var(--color-text-secondary); font-size: .75rem; }
 .sidebar-recommendations__meta > * { white-space: nowrap; }
-.sidebar-recommendations li a:hover { color: var(--color-brand); }
+.sidebar-recommendations li a:hover { color: #d9534f; text-decoration: none; }
 .sidebar-empty { margin: 0; color: var(--color-muted); }
 .sidebar-stats dl { font-size: .75rem; }
 .sidebar-stats dt, .sidebar-stats dd { display: inline; }
