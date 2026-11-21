@@ -107,6 +107,8 @@ const year = new Date().getFullYear();
 		<Font cssVariable="--font-mono" />
 		<title>{fullTitle}</title>
 		<EmDashHead page={pageCtx} />
+		{Astro.url.pathname.endsWith(".html") && <link rel="stylesheet" href="/theme/needsharebutton.min.css" />}
+		{Astro.url.pathname.endsWith(".html") && <script is:inline src="/theme/needsharebutton.min.js"></script>}
 		<link
 			rel="alternate"
 			type="application/rss+xml"

@@ -2,7 +2,6 @@
 import {
 	getEmDashEntry,
 	getEmDashCollection,
-	getTermsForEntries,
 	getSeoMeta,
 	decodeSlug,
 	getSiteSettings,
@@ -13,10 +12,11 @@ import Base from "../layouts/Base.astro";
 import ThemeSidebar from "../components/ThemeSidebar.astro";
 import ArticleExtras from "../components/ArticleExtras.astro";
 import Byline from "../components/Byline.astro";
-import PostCard from "../components/PostCard.astro";
 import { formatDate } from "../utils/locale";
 import { getReadingTime } from "../utils/reading-time";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
+import { postPath } from "../utils/post-url";
+import { getThemeSettings } from "../theme/settings";
 import "../styles/prose.css";
 
 const slug = decodeSlug(Astro.params.slug);
@@ -80,25 +80,16 @@ const categories = post.data.terms?.category ?? [];
 const { entries: recentPosts, cacheHint: recentPostsCacheHint } =
 	await getEmDashCollection("posts", {
 		orderBy: { published_at: "desc" },
-		limit: 4,
+		limit: 100,
 	});
 if (Astro.cache?.enabled) Astro.cache.set(recentPostsCacheHint);
-const otherPosts = recentPosts.filter((p) => p.id !== post.id).slice(0, 3);
-
-// Single batched query for related-posts tags, rather than one
-// getEntryTerms() call per related post.
-const otherTagsByEntry = await getTermsForEntries(
-	"posts",
-	otherPosts.map((p) => p.data.id),
-	"tag",
-);
-const otherPostsWithTags = otherPosts.map((p) => ({
-	post: p,
-	tags: (otherTagsByEntry.get(p.data.id) ?? []).map((t) => ({
-		slug: t.slug,
-		label: t.label,
-	})),
-}));
+const candidates = recentPosts.filter((p) => p.id !== post.id);
+const recommendations = [...candidates].sort(() => Math.random() - 0.5).slice(0, 4).map(p => ({ title: p.data.title, href: postPath(p.id) }));
+const chronological = [...recentPosts].sort((a, b) => (a.data.publishedAt?.getTime() ?? 0) - (b.data.publishedAt?.getTime() ?? 0));
+const currentIndex = chronological.findIndex(p => p.id === post.id);
+const previous = currentIndex > 0 ? chronological[currentIndex - 1] : undefined;
+const next = currentIndex >= 0 && currentIndex < chronological.length - 1 ? chronological[currentIndex + 1] : undefined;
+const themeSettings = await getThemeSettings(Astro.locals, Astro.request);
 
 const publishedAt = post.data.publishedAt ?? null;
 const publishDate = publishedAt ? formatDate(publishedAt, "long") : null;
@@ -151,7 +142,7 @@ const hasHeadings = (post.data.content ?? []).some(
             </div>}
             <div class="prose" data-post-content><PortableText value={post.data.content} /></div>
             {tags.length > 0 && <ul class="chips article-tags" aria-label="文章标签">{tags.map(term => <li><a class="chip" href={`/tag/${term.slug}`}>{term.label}</a></li>)}</ul>}
-            <ArticleExtras title={post.data.title} bylines={bylines} />
+            <ArticleExtras title={post.data.title} bylines={bylines} copyright={themeSettings.copyright} canonicalUrl={seo.canonical ?? Astro.url.href} recommendations={recommendations} previous={previous ? {title: previous.data.title, href: postPath(previous.id)} : undefined} next={next ? {title: next.data.title, href: postPath(next.id)} : undefined} shareNetworks="Weibo,Wechat,Douban,QQZone,Twitter,Pinterest,Facebook,Linkedin" />
             <section id="comments" class="post-comments article-comments" aria-labelledby="comments-title">
               <h2 id="comments-title">评论与讨论</h2>
               <Comments collection="posts" contentId={post.data.id} threaded locale="zh-CN" labels={{ heading: count => `${count} 条评论`, member: "站长" }} />
@@ -159,10 +150,6 @@ const hasHeadings = (post.data.content ?? []).some(
             </section>
           </div>
         </div>
-        {otherPostsWithTags.length > 0 && <section class="article-related" aria-labelledby="continue-reading">
-          <div class="section-head"><h2 id="continue-reading">继续阅读</h2><a href="/posts">全部文章</a></div>
-          <div class="post-grid">{otherPostsWithTags.map(({post: related, tags: relatedTags}) => <PostCard post={related} tags={relatedTags} variant="card" headingLevel={3} />)}</div>
-        </section>}
       </div>
       <aside class="article-sidebar" aria-label="文章侧栏">
         <nav class="article-toc" aria-labelledby="toc-title" hidden={!hasHeadings} data-toc>

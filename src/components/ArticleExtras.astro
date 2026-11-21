@@ -1,0 +1,57 @@
+---
+import type { ContentBylineCredit } from "emdash";
+import Byline from "./Byline.astro";
+
+interface Props {
+  title: string;
+  bylines: ContentBylineCredit[];
+  copyright: string;
+  previous?: { title: string; href: string };
+  next?: { title: string; href: string };
+  canonicalUrl: string;
+  shareNetworks: string;
+  recommendations: Array<{ title: string; href: string }>;
+}
+const { title, bylines, copyright, previous, next, canonicalUrl, recommendations, shareNetworks } = Astro.props;
+const author = bylines[0]?.byline;
+const displayName = author?.displayName ?? "本站作者";
+const biography = author?.bio ?? "";
+const avatar = author?.avatarStorageKey
+  ? (Astro.locals.emdash?.getPublicMediaUrl?.(author.avatarStorageKey) ?? `/_emdash/api/media/file/${author.avatarStorageKey.split("/").map(encodeURIComponent).join("/")}`)
+  : undefined;
+---
+
+<section class="article-copyright" aria-label="版权声明">
+  <p>本文作者：{displayName}。文章《{title}》版权归原作者所有；转载请注明作者与<a href={canonicalUrl}>本文原始链接</a>。{copyright}</p>
+</section>
+<div class="article-social" aria-label="文章互动">
+  <button class="article-like" type="button" data-article-like aria-pressed="false"><span aria-hidden="true">♡</span> 喜欢 <span data-like-count>0</span></button>
+<button class="article-share-button" type="button" data-needshare-open>分享</button>
+</div>
+<nav class="article-nav" aria-label="上一篇和下一篇">
+  {previous ? <a href={previous.href}><small>上一篇</small><span>← {previous.title}</span></a> : <span></span>}
+  {next ? <a href={next.href} class="article-nav-next"><small>下一篇</small><span>{next.title} →</span></a> : <span></span>}
+</nav>
+<section class="article-authors" aria-labelledby="author-card-title">
+  {avatar ? <img class="article-author-avatar" src={avatar} alt="" loading="lazy" /> : <span class="article-author-avatar article-author-avatar--fallback" aria-hidden="true">{[...displayName][0]}</span>}
+  <div><h2 id="author-card-title">关于作者：{displayName}</h2>{biography && <p>{biography}</p>}<Byline bylines={bylines} layout="list" size="sm" /></div>
+</section>
+<section class="article-random" aria-labelledby="random-title">
+  <h2 id="random-title">你可能喜欢</h2>
+  {recommendations.length > 0 ? <ul>{recommendations.map(item => <li><a href={item.href}>{item.title}</a></li>)}</ul> : <p>暂时没有推荐文章。</p>}
+</section>
+<button class="need-share-button article-share-proxy" type="button" data-needshare-networks={shareNetworks} aria-hidden="true" tabindex="-1">分享</button>
+
+<script>
+  const shareButton = document.querySelector<HTMLButtonElement>("[data-needshare-open]");
+  const shareProxy = document.querySelector<HTMLButtonElement>(".article-share-proxy");
+  if (shareButton && shareProxy) {
+    shareButton.addEventListener("click", () => shareProxy.click());
+  }
+  document.querySelector<HTMLButtonElement>("[data-article-like]")?.addEventListener("click", event => {
+    const button = event.currentTarget as HTMLButtonElement;
+    const active = button.getAttribute("aria-pressed") === "true";
+    button.setAttribute("aria-pressed", String(!active));
+    button.querySelector("[data-like-count]")!.textContent = active ? "0" : "1";
+  });
+</script>
