@@ -12,7 +12,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "start": "node ./dist/server/entry.mjs",
-    "typecheck": "astro check"
+    "typecheck": "astro check",
+    "secrets:init": "emdash secrets generate --write .env",
+    "verify:docker": "node scripts/verify-docker.mjs"
   },
   "dependencies": {
     "@astrojs/node": "^11.1.5",

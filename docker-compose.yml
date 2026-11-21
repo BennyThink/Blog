@@ -1,0 +1,27 @@
+name: tudou-emdash
+services:
+  emdash:
+    build:
+      context: .
+      args:
+        EMDASH_SITE_URL: ${EMDASH_SITE_URL:-http://localhost:4321}
+    ports:
+      - "127.0.0.1:${EMDASH_PORT:-4321}:4321"
+    environment:
+      EMDASH_SITE_URL: ${EMDASH_SITE_URL:-http://localhost:4321}
+      EMDASH_ENCRYPTION_KEY: ${EMDASH_ENCRYPTION_KEY:?Generate .env with npm run secrets:init first}
+    volumes:
+      - type: bind
+        source: ./data
+        target: /app/data
+      - type: bind
+        source: ./uploads
+        target: /app/uploads
+    restart: unless-stopped
+    init: true
+    healthcheck:
+      test: ["CMD", "node", "--input-type=module", "-e", "const r = await fetch('http://127.0.0.1:4321/'); if (!r.ok) process.exit(1)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 120s
+      retries: 5

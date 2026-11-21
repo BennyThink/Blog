@@ -7,3 +7,16 @@ certs/
 /pages/frontend/node_modules/
 /node_modules/
 WordPress-root/
+# Local EmDash runtime and credentials
+.env
+.env.*
+!.env.example
+/data/
+/uploads/
+/dist/
+/.astro/
+/.emdash/
+*.db
+*.db-shm
+*.db-wal
+.DS_Store

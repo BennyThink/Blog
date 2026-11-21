@@ -1,3 +1,22 @@
+# 土豆不好吃 · EmDash 迁移项目
+
+本阶段使用官方 Blog 示例数据，线上 WordPress 保持原样。
+
+运行、数据目录、验收与后续导出说明见 [迁移说明](docs/migration.md)。
+
+逐步迁移清单见 [stories](stories/README.md)。Compose 文件为 `docker-compose.yml`，通过 bind mount 将数据库和媒体保存在项目的 `data/`、`uploads/` 目录。
+
+```sh
+npm run secrets:init  # 仅首次生成 .env；已有密钥时跳过
+docker compose up -d --build
+```
+
+首页：http://localhost:4321/
+
+后台：http://localhost:4321/_emdash/admin
+
+---
+
 # EmDash Blog Template
 
 A clean, minimal blog built with [EmDash](https://github.com/emdash-cms/emdash). Runs on any Node.js server with SQLite and local file storage.

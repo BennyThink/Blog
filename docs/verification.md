@@ -1,0 +1,30 @@
+# 本地容器验收记录
+
+日期：2026-11-21（Asia/Shanghai）
+
+环境：Docker Desktop，Linux ARM64 容器；Node.js 24 bookworm slim；锁文件安装的 EmDash 1.5.0、Astro 7.4.13。
+
+- `docker compose up -d --build`：构建并启动成功。
+- `npx emdash seed seed/seed.json --validate`：通过。
+- `ASTRO_TELEMETRY_DISABLED=1 npm run typecheck`：19 个文件，0 错误、0 警告、0 提示。
+- `npm run verify:docker`：PASS。
+- 首页、文章列表、后台初始化页面、后台 Astro island 与 React renderer 资源、setup status API：HTTP 200。
+- 浏览器检查：首页显示「土豆不好吃」、示例站副标题和文章列表；后台实际渲染 Set up your site 向导，站点标题及副标题已预填。
+- 持久化：实际执行 `docker compose up -d --force-recreate --no-build emdash`，确认容器 ID 改变。
+- 重建前后：8 篇文章和 1 个页面的完整数据库记录一致；7 条媒体记录一致；7 张本地媒体的 SHA-256 全部一致；媒体 HTTP 下载的字节哈希一致。
+- 非 seed 数据：写入随机数据库标记，重建后仍存在且值一致，随后清理测试标记。
+- `PRAGMA integrity_check`：ok。
+- 容器以 `node` 用户运行；端口绑定 127.0.0.1。
+
+## Bind mount 调整后复验
+
+- Compose 文件改为 `docker-compose.yml`，移除顶层 named volumes 声明。
+- 停止容器后，将原数据库（含 WAL/SHM）及媒体复制到项目 `data/`、`uploads/`。
+- Docker inspect 确认 `/app/data` 与 `/app/uploads` 均为 `Type: bind`，来源为当前项目的对应目录。
+- 使用新配置启动并再次执行 `npm run verify:docker`：PASS。
+- 实际替换容器后，8 篇文章、1 个页面、7 条媒体记录及所有媒体哈希一致；随机数据库标记保留，SQLite 完整性为 ok。
+- 原 named volumes 未删除，保留为切换时的回退副本，当前容器不再挂载。
+
+当前后台处于尚未注册管理员的初始化状态；未验证已登录后的编辑流程。站点所有者需自行注册 Passkey。生产构建有上游后台 JS chunk 超过 500 kB 的提示，不阻止构建和加载。
+
+没有连接或变更线上 WordPress，也没有读取旧 WordPress 配置或导入真实内容。
