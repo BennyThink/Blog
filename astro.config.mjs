@@ -6,6 +6,25 @@ import { sqlite } from "emdash/db";
 import { Features } from "lightningcss";
 import { fileURLToPath } from "node:url";
 
+const themePluginCard = {
+	name: "dmesg-theme-plugin-card",
+	enforce: "pre",
+	transform(code, id) {
+		if (!id.endsWith("/@emdash-cms/admin/dist/index.js")) return;
+
+		// EmDash uses the same metadata for its shortcut buttons, sidebar, and settings API.
+		// Change only the two card actions so the theme's own settings page remains registered.
+		for (const field of ["hasSettings", "hasAdminPages"]) {
+			const shortcut = `plugin.${field} && plugin.enabled && /* @__PURE__ */ jsx(RouterLinkButton, {`;
+			if (code.split(shortcut).length !== 2) {
+				this.error(`The EmDash plugin card changed. Review the ${field} shortcut customization.`);
+			}
+			code = code.replace(shortcut, `plugin.id !== "dmesg-theme" && ${shortcut}`);
+		}
+		return { code, map: null };
+	},
+};
+
 export default defineConfig({
 	output: "server",
 	session: {
@@ -19,24 +38,10 @@ export default defineConfig({
 		responsiveStyles: true,
 	},
 	vite: {
-		plugins: [{
-			name: "dmesg-theme-plugin-card",
-			enforce: "pre",
-			transform(code, id) {
-				if (!id.endsWith("/@emdash-cms/admin/dist/index.js")) return;
-
-				// EmDash uses the same metadata for its shortcut buttons, sidebar, and settings API.
-				// Change only the two card actions so the theme's own settings page remains registered.
-				for (const field of ["hasSettings", "hasAdminPages"]) {
-					const shortcut = `plugin.${field} && plugin.enabled && /* @__PURE__ */ jsx(RouterLinkButton, {`;
-					if (code.split(shortcut).length !== 2) {
-						this.error(`The EmDash plugin card changed. Review the ${field} shortcut customization.`);
-					}
-					code = code.replace(shortcut, `plugin.id !== "dmesg-theme" && ${shortcut}`);
-				}
-				return { code, map: null };
-			},
-		}],
+		plugins: [themePluginCard],
+		optimizeDeps: {
+			rolldownOptions: { plugins: [themePluginCard] },
+		},
 		css: {
 			// Keep light-dark() native so the footer theme switcher works in
 			// production. For older browsers, Lightning CSS otherwise rewrites
