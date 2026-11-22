@@ -268,6 +268,7 @@ body .theme-post-list { gap: 10px; }
 .post-list-like svg, .article-like svg { margin-inline-end: 4px; vertical-align: -.18em; }
 .post-list-like:hover { text-decoration: underline; }
 .post-list-like[aria-pressed="true"] svg { fill: currentColor; }
+.post-list-like:disabled { color: var(--color-muted); cursor: default; }
 body .sidebar-panel, body .sidebar-widgets .widget { padding: 14px 18px; border-radius: 2px; }
 body .sidebar-panel h2, body .sidebar-widgets .widget__title { margin-bottom: 10px; padding-bottom: 9px; }
 body .sidebar-widgets .widget-categories { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
@@ -557,10 +558,11 @@ body .article-heading .article-dateline .byline .byline__avatars { display: none
 .article-copyright { margin: 20px 12px 0; padding: 10px 14px; border: 1px solid #8aa9d2; border-radius: 4px; background: #fbf8e8; box-shadow: none; color: #887755; font-size: 14px; line-height: 1.7; text-align: center; }
 .article-copyright p { margin: 0; }
 .article-copyright a { color: #d9534f; }
-.article-social { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 0 0 30px; padding-top: 40px; text-align: center; }
-.article-social button { position: relative; display: inline-block; width: 160px; min-height: 44px; margin: 0 3px; padding: 8px 20px; border: 1px solid #d6d6d6; border-radius: 0; background: #5fcec0; color: #fff; font: inherit; font-size: .9375rem; cursor: pointer; }
+.article-social { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin: 0 0 30px; padding-top: 40px; text-align: center; }
+.article-social button { position: relative; display: inline-block; flex: 0 1 160px; width: 160px; min-height: 44px; margin: 0; padding: 8px 16px; border: 1px solid #d6d6d6; border-radius: 0; background: #5fcec0; color: #fff; font: inherit; font-size: .9375rem; cursor: pointer; }
 .article-social .article-like { background: #f78585; color: #fff; }
 .article-social .article-like:hover, .article-social .article-like[aria-pressed="true"] { background: #f17067; color: #fff; }
+.article-social .article-like:disabled { border-color: #d6d6d6; background: #e5e5e5; color: #777; cursor: default; }
 .article-share-button { background: #5fcec0 !important; color: #fff !important; }
 .article-nav { overflow: hidden; display: flex; justify-content: space-between; padding: 15px 20px; border: 0; border-top: 1px solid #f2f2f2; background: #fbfbfb; color: #bbb; font-size: .9375rem; }
 .article-nav a { display: block; max-width: 50%; color: var(--color-brand); }

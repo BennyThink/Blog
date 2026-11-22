@@ -8,6 +8,8 @@ import ArticleLike from "./ArticleLike.astro";
 import Byline from "./Byline.astro";
 import { formatDate, formatPostAge } from "../utils/locale";
 import { extractText, formatReadingTime, getReadingTime } from "../utils/reading-time";
+import { proxyImage } from "../utils/media-proxy";
+import { getThemeSettings } from "../theme/settings";
 
 interface Props {
 	post: ContentEntry<InferCollectionData<"posts">>;
@@ -27,7 +29,8 @@ const {
 	priority = false,
 } = Astro.props;
 
-const image = getPostThumbnail(post.data);
+const { proxyUrl } = await getThemeSettings(Astro.locals, Astro.request);
+const image = proxyImage(getPostThumbnail(post.data), proxyUrl);
 const excerpt = post.data.excerpt || extractText(post.data.content).replace(/\[\/?[a-zA-Z_][^\]]*\]/g, "").slice(0, 260);
 const Heading = `h${headingLevel}` as const;
 const href = postPath(post.id);

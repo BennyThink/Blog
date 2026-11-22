@@ -3,6 +3,8 @@ import type { ContentBylineCredit } from "emdash";
 import type { ContentEntry, InferCollectionData } from "emdash";
 import { Image } from "emdash/ui";
 import ArticleLike from "./ArticleLike.astro";
+import { proxyImage, proxyMediaUrl } from "../utils/media-proxy";
+import { getThemeSettings } from "../theme/settings";
 
 interface Props {
   postId: string;
@@ -14,6 +16,7 @@ interface Props {
   recommendations: Array<{ post: ContentEntry<InferCollectionData<"posts">>; href: string }>;
 }
 const { postId, likeCount, bylines, previous, next, canonicalUrl, recommendations } = Astro.props;
+const { proxyUrl } = await getThemeSettings(Astro.locals, Astro.request);
 const author = bylines[0]?.byline;
 const displayName = author?.displayName ?? "本站作者";
 const biography = author?.bio ?? "";
@@ -23,7 +26,7 @@ const fallbackAvatar = (key: string) => {
   return `/theme/avatars/${(hash >>> 0) % 19 + 1}.png`;
 };
 const avatar = author?.avatarStorageKey
-  ? (Astro.locals.emdash?.getPublicMediaUrl?.(author.avatarStorageKey) ?? `/_emdash/api/media/file/${author.avatarStorageKey.split("/").map(encodeURIComponent).join("/")}`)
+  ? proxyMediaUrl(Astro.locals.emdash?.getPublicMediaUrl?.(author.avatarStorageKey) ?? `/_emdash/api/media/file/${author.avatarStorageKey.split("/").map(encodeURIComponent).join("/")}`, proxyUrl)
   : displayName === "Benny小土豆" ? "/theme/author-avatar.png" : fallbackAvatar(author?.slug ?? displayName);
 const profileUrl = author?.websiteUrl ?? "/about-me";
 ---
@@ -47,7 +50,7 @@ const profileUrl = author?.websiteUrl ?? "/about-me";
   {recommendations.length > 0 ? <ul>{recommendations.map(({post, href}) => {
     const firstImage = post.data.content?.find(block => block._type === "image") as { asset?: { url?: string; _ref?: string }; alt?: string } | undefined;
     const fallbackSrc = firstImage?.asset?.url || firstImage?.asset?._ref;
-    const image = post.data.featured_image || (fallbackSrc && /^(https?:\/\/|\/)/.test(fallbackSrc) ? { id: firstImage?.asset?._ref || "", src: fallbackSrc, alt: firstImage?.alt || "" } : undefined);
+    const image = proxyImage(post.data.featured_image || (fallbackSrc && /^(https?:\/\/|\/)/.test(fallbackSrc) ? { id: firstImage?.asset?._ref || "", src: fallbackSrc, alt: firstImage?.alt || "" } : undefined), proxyUrl);
     return <li><a href={href} title={post.data.title}>{image && <Image image={image} sizes="(min-width: 900px) 185px, 25vw" />}<span>{post.data.title}</span></a></li>;
   })}</ul> : <p>没有相关文章。</p>}
 </section>

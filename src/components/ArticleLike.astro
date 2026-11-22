@@ -10,47 +10,91 @@ interface Props {
 const { postId, count: storedCount, variant = "row" } = Astro.props;
 const count = storedCount ?? 0;
 ---
-<article-like data-post-id={postId} data-count={count}>
+<article-like data-post-id={postId} data-count={count} data-variant={variant}>
   <button type="button" class:list={[variant === "row" ? "post-list-like" : "article-like", "action"]}
     aria-label="点赞" aria-pressed="false">
     <HeartIcon size={variant === "row" ? 13 : 16} aria-hidden="true" />
-    {variant === "row" ? <><span data-like-count>{count}</span> 个赞</> : <>喜欢 (<span data-like-count>{count}</span>)</>}
+    {variant === "row" ? <><span data-like-count>{count}</span> <span data-like-label>个赞</span></> : <><span data-like-label>喜欢</span> (<span data-like-count>{count}</span>)</>}
   </button>
 </article-like>
 
 <script>
   class ArticleLike extends HTMLElement {
+    private initialized = false;
+
     connectedCallback() {
+      if (this.initialized) return;
+      this.initialized = true;
       const button = this.querySelector("button");
       const count = this.querySelector("[data-like-count]");
-      if (!button || !count) return;
+      const label = this.querySelector("[data-like-label]");
+      if (!button || !count || !label) return;
 
-      const key = `dmesg:post-like:${this.dataset.postId}`;
+      const postId = this.dataset.postId;
+      if (!postId) return;
+      // Ignore stale markers from the old client-only toggle.
+      const key = `dmesg:post-like:v2:${postId}`;
+      const browserKey = "dmesg:like-browser-id";
+      const endpoint = "/_emdash/api/plugins/dmesg-theme";
       const baseCount = Number(this.dataset.count);
+      let browserId: string;
       let liked = false;
+      let interactionStarted = false;
       try {
+        browserId = localStorage.getItem(browserKey) ?? crypto.randomUUID();
+        localStorage.setItem(browserKey, browserId);
         liked = localStorage.getItem(key) === "1";
       } catch {
-        // The control still works for this view if storage is unavailable.
+        browserId = crypto.randomUUID();
       }
 
+      const updateCount = (serverCount: number) => {
+        count.textContent = String(baseCount + serverCount);
+      };
       const render = () => {
         button.setAttribute("aria-pressed", String(liked));
-        count.textContent = String(baseCount + Number(liked));
+        button.disabled = liked;
+        label.textContent = liked ? "已喜欢" : (this.dataset.variant === "row" ? "个赞" : "喜欢");
       };
-      button.onclick = () => {
-        liked = !liked;
+
+      fetch(`${endpoint}/like-count?postId=${encodeURIComponent(postId)}&browserId=${encodeURIComponent(browserId)}`)
+        .then((response) => response.json())
+        .then((result: { data?: { ok?: boolean; count?: number; alreadyLiked?: boolean } }) => {
+          if (result.data?.ok && typeof result.data.count === "number") updateCount(result.data.count);
+          if (!interactionStarted && result.data?.ok && result.data.alreadyLiked) {
+            liked = true;
+            try { localStorage.setItem(key, "1"); } catch { /* Server remains authoritative. */ }
+            render();
+          }
+        })
+        .catch(() => {});
+
+      button.onclick = async () => {
+        if (liked || button.disabled) return;
+        interactionStarted = true;
+        button.disabled = true;
         try {
-          if (liked) localStorage.setItem(key, "1");
-          else localStorage.removeItem(key);
+          const response = await fetch(`${endpoint}/like`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ postId, browserId }),
+          });
+          const result = await response.json() as { data?: { ok?: boolean; liked?: boolean; count?: number } };
+          if (!response.ok || !result.data?.ok || typeof result.data.count !== "number") throw new Error("点赞失败");
+          liked = true;
+          updateCount(result.data.count);
+          try { localStorage.setItem(key, "1"); } catch { /* Server keeps the vote. */ }
+          render();
         } catch {
-          // Keep the current view responsive if storage is unavailable.
+          button.disabled = false;
+          button.title = "点赞未成功，请重试";
         }
-        render();
       };
       render();
     }
   }
 
-  customElements.define("article-like", ArticleLike);
+  if (!customElements.get("article-like")) {
+    customElements.define("article-like", ArticleLike);
+  }
 </script>

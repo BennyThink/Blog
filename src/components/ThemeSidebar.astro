@@ -4,6 +4,8 @@ import { getDb } from "emdash/runtime";
 import { Image } from "emdash/ui";
 import { getPostThumbnail } from "../utils/post-thumbnail";
 import { postPath } from "../utils/post-url";
+import { proxyImage } from "../utils/media-proxy";
+import { getThemeSettings } from "../theme/settings";
 
 interface Props {
   currentPostId?: string;
@@ -17,6 +19,7 @@ interface ContentRow {
 }
 
 const { currentPostId } = Astro.props;
+const { proxyUrl } = await getThemeSettings(Astro.locals, Astro.request);
 const db = (await getDb()).$extendTables<{ ec_posts: ContentRow; ec_pages: ContentRow }>();
 const publishedPosts = db.selectFrom("ec_posts")
   .where("status", "=", "published")
@@ -53,7 +56,7 @@ if (Astro.cache?.enabled) {
 const recommendations = await Promise.all((posts?.entries ?? []).map(async post => ({
   href: postPath(post.id),
   title: post.data.title,
-  image: { ...getPostThumbnail(post.data), alt: "" },
+  image: proxyImage({ ...getPostThumbnail(post.data), alt: "" }, proxyUrl),
   publishedAt: post.data.publishedAt,
   comments: await getCommentCount("posts", post.data.id),
 })));

@@ -1,15 +1,57 @@
 import { definePlugin } from "emdash";
+import type { PluginAdminConfig } from "emdash";
 import { createHash } from "node:crypto";
 import { readPublicSettings, settingsSchema } from "../theme/settings.ts";
 import { rejectsComment, type CommentRules } from "./comment-rules.ts";
+import { portableTextBlocks } from "./portable-text/config.mjs";
 
 export function createPlugin() {
   return definePlugin({
     id: "dmesg-theme", displayName: "土豆 · 主题与功能", version: "0.1.0",
     description: "旧站主题适配、公告、SEO、评论规则及首次发布通知。",
+    storage: { likes: { indexes: ["postId"] } },
     capabilities: ["hooks.page-fragments:register", "users:read", "comments:read", "content:read", "hooks.content-policy:register"],
-    admin: { settingsSchema },
+    admin: { settingsSchema, portableTextBlocks: portableTextBlocks as PluginAdminConfig["portableTextBlocks"] },
     routes: {
+      "like-count": {
+        public: true,
+        methods: ["GET"],
+        handler: async (route) => {
+          const input = route.input && typeof route.input === "object" ? route.input as Record<string, unknown> : {};
+          const postId = input.postId;
+          if (typeof postId !== "string" || !/^[a-zA-Z0-9_-]{1,80}$/.test(postId)) return { ok: false, error: "INVALID_POST" };
+          const post = await route.content!.get("posts", postId);
+          if (!post || post.status !== "published") return { ok: false, error: "POST_NOT_FOUND" };
+          const count = await route.storage.likes.count({ postId });
+          const browserId = input.browserId;
+          const alreadyLiked = typeof browserId === "string" && /^[a-f0-9-]{36}$/i.test(browserId)
+            ? await route.storage.likes.exists(createHash("sha256").update(`${postId}:${browserId}`).digest("hex"))
+            : false;
+          return { ok: true, count, alreadyLiked };
+        },
+      },
+      like: {
+        public: true,
+        methods: ["POST"],
+        request: { body: "json" },
+        handler: async (route) => {
+          const input = route.input && typeof route.input === "object" ? route.input as Record<string, unknown> : {};
+          const postId = input.postId;
+          const browserId = input.browserId;
+          if (typeof postId !== "string" || !/^[a-zA-Z0-9_-]{1,80}$/.test(postId) ||
+              typeof browserId !== "string" || !/^[a-f0-9-]{36}$/i.test(browserId)) {
+            return { ok: false, error: "INVALID_INPUT" };
+          }
+          const post = await route.content!.get("posts", postId);
+          if (!post || post.status !== "published") return { ok: false, error: "POST_NOT_FOUND" };
+
+          // One durable vote per browser identity and post, even if the browser marker is cleared.
+          const voteId = createHash("sha256").update(`${postId}:${browserId}`).digest("hex");
+          const result = await route.storage.likes.compareAndSet(voteId, null, { postId });
+          const count = await route.storage.likes.count({ postId });
+          return { ok: true, liked: result.applied, count };
+        },
+      },
       settings: { public: true, methods: ["GET"], handler: async (ctx) => readPublicSettings(ctx.settings) },
       avatar: { public: true, methods: ["GET"], handler: async (ctx) => {
         if ((await ctx.settings.get<boolean>("mixedAvatars")) === false) return null;

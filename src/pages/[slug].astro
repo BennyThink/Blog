@@ -11,6 +11,7 @@ import Guestbook from "../components/Guestbook.astro";
 import HighlightedCode from "../components/HighlightedCode.astro";
 import Base from "../layouts/Base.astro";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
+import ProxyPortableImage from "../components/ProxyPortableImage.astro";
 import "../styles/prose.css";
 
 const slug = decodeSlug(Astro.params.slug);
@@ -56,7 +57,7 @@ const seo = getSeoMeta(page, {
 				</header>
 				<div class="article-reading">
 					<div class="prose" {...page.edit.content}>
-						<PortableText value={page.data.content} components={{ type: { code: HighlightedCode } }} />
+						<PortableText value={page.data.content} components={{ type: { code: HighlightedCode, image: ProxyPortableImage } }} />
 					</div>
 					{slug === "message" && page.data.status === "published" && (
 						<Guestbook contentId={page.data.id} publishedAt={page.data.publishedAt} />

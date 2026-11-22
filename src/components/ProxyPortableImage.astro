@@ -1,0 +1,12 @@
+---
+import { Image as EmDashPortableImage } from "emdash/ui";
+import { proxyMediaUrl } from "../utils/media-proxy";
+import { getThemeSettings } from "../theme/settings";
+
+const { node, ...props } = Astro.props;
+const { proxyUrl } = await getThemeSettings(Astro.locals, Astro.request);
+const asset = node?.asset;
+const proxiedUrl = proxyMediaUrl(asset?.url, proxyUrl);
+const proxiedNode = proxiedUrl ? { ...node, asset: { ...asset, url: proxiedUrl } } : node;
+---
+<EmDashPortableImage node={proxiedNode} {...props} />
