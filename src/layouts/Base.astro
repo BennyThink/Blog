@@ -17,6 +17,7 @@ import LiveSearch from "emdash/ui/search";
 import { Font } from "astro:assets";
 import { getSiteLocale } from "../utils/locale";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
+import { resolveSiteOrigin } from "../utils/site-origin";
 import "../styles/tokens.css";
 import "../styles/theme.css";
 
@@ -92,6 +93,7 @@ const pageCtx = createPublicPageContext({
 	seo: { ogImage: image, robots },
 	articleMeta: { publishedTime, modifiedTime, author },
 	siteName: siteTitle,
+	siteUrl: resolveSiteOrigin(Astro),
 });
 
 const TRAILING_SLASH = /\/$/;

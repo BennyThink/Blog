@@ -4,6 +4,7 @@ import ThemePostList from "../../components/ThemePostList.astro";
 import Base from "../../layouts/Base.astro";
 import { getThemeSettings } from "../../theme/settings";
 import { searchPostIds } from "../../utils/search-posts";
+import { resolveSiteOrigin } from "../../utils/site-origin";
 
 export const prerender = false;
 
@@ -74,7 +75,7 @@ const nearbyPages = Array.from(
 const heading = query ? `有关【${query}】的内容` : "搜索文章";
 const theme = query ? undefined : await getThemeSettings(Astro.locals, Astro.request);
 ---
-<Base title={query ? `${query} | 搜索结果` : "搜索"} description={heading} canonical={query ? new URL(pageHref(currentPage), Astro.site ?? Astro.url).href : undefined}>
+<Base title={query ? `${query} | 搜索结果` : "搜索"} description={heading} canonical={query ? new URL(pageHref(currentPage), resolveSiteOrigin(Astro)).href : undefined}>
   <ThemePostList posts={posts}>
     <header slot="heading" class:list={["search-heading", { "search-heading--form": !query }]}>
       <h1>{heading}</h1>

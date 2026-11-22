@@ -17,6 +17,7 @@ import ArticleIcon from "../components/ArticleIcon.astro";
 import { formatDate } from "../utils/locale";
 import { getContentCharacterCount } from "../utils/reading-time";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
+import { resolveSiteOrigin } from "../utils/site-origin";
 import { postPath } from "../utils/post-url";
 import { proxyImage, proxyMediaUrl } from "../utils/media-proxy";
 import ProxyPortableImage from "../components/ProxyPortableImage.astro";
@@ -38,6 +39,8 @@ if (!post) {
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
+const siteOrigin = resolveSiteOrigin(Astro);
+
 // Get featured image URL for OG fallback
 // The image may have src (external) or meta.storageKey (local)
 function getImageUrl(img: unknown): string | undefined {
@@ -47,7 +50,7 @@ function getImageUrl(img: unknown): string | undefined {
 	if (typeof image.src === "string" && image.src) {
 			return proxyMediaUrl(image.src.startsWith("http")
 			? image.src
-				: `${Astro.url.origin}${image.src}`, proxyUrl);
+				: `${siteOrigin}${image.src}`, proxyUrl);
 	}
 	// Build from storageKey for local images
 	const meta = image.meta as Record<string, unknown> | undefined;
@@ -55,7 +58,7 @@ function getImageUrl(img: unknown): string | undefined {
 		(typeof meta?.storageKey === "string" ? meta.storageKey : undefined) ||
 		(typeof image.id === "string" ? image.id : undefined);
 	if (storageKey) {
-		return proxyMediaUrl(`${Astro.url.origin}/_emdash/api/media/file/${storageKey}`, proxyUrl);
+		return proxyMediaUrl(`${siteOrigin}/_emdash/api/media/file/${storageKey}`, proxyUrl);
 	}
 	return undefined;
 }
@@ -65,7 +68,7 @@ const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
 // Generate SEO meta from content
 const seo = getSeoMeta(post, {
 	siteTitle,
-	siteUrl: Astro.url.origin,
+	siteUrl: siteOrigin,
 	path: Astro.url.pathname.replace(/\/$/, ""),
 	defaultOgImage: featuredImageUrl,
 });

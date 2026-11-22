@@ -12,6 +12,7 @@ import Guestbook from "../components/Guestbook.astro";
 import HighlightedCode from "../components/HighlightedCode.astro";
 import Base from "../layouts/Base.astro";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
+import { resolveSiteOrigin } from "../utils/site-origin";
 import ProxyPortableImage from "../components/ProxyPortableImage.astro";
 import "../styles/prose.css";
 
@@ -35,7 +36,7 @@ if (!page) {
 const seo = page
 	? getSeoMeta(page, {
 		siteTitle: resolveBlogSiteIdentity(await getSiteSettings()).siteTitle,
-		siteUrl: Astro.url.origin,
+		siteUrl: resolveSiteOrigin(Astro),
 		path: Astro.url.pathname.replace(/\/$/, ""),
 	})
 	: undefined;
