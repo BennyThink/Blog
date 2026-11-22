@@ -28,7 +28,7 @@ export function createPlugin() {
 
           const update = route.input && typeof route.input === "object" ? route.input as TelegramUpdate : {};
           const message = update.message;
-          if (!message || String(message.from?.id ?? "") !== ownerId || !message.reply_to_message?.message_id) return { ok: true };
+          if (!message || String(message.from?.id ?? "") !== ownerId || !message.chat?.id || !message.reply_to_message?.message_id) return { ok: true };
 
           const updateKey = `telegram:handled:${update.update_id ?? ""}`;
           if (update.update_id !== undefined) {
@@ -211,7 +211,7 @@ export function createPlugin() {
         const token = await ctx.settings.get<string>("telegramBotToken");
         const ownerId = String(await ctx.settings.get<string>("telegramOwnerId") ?? "").trim();
         if (!token || !ownerId) return;
-        await registerTelegramWebhook(ctx, token);
+        if (!(await registerTelegramWebhook(ctx, token))) return;
         const postUrl = new URL(`/${encodeURIComponent(event.content.slug)}.html#comment-${encodeURIComponent(event.comment.id)}`, ctx.site.url).href;
         try {
           const sent = await telegramApi(ctx, token, "sendMessage", {
@@ -243,7 +243,7 @@ interface TelegramUpdate {
   update_id?: number;
   message?: {
     from?: { id?: number };
-    chat: { id: number };
+    chat?: { id?: number };
     message_id?: number;
     text?: string;
     reply_to_message?: { message_id?: number };

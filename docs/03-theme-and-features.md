@@ -62,7 +62,7 @@
 | 作者模块 | 使用 EmDash byline 名称、头像与 bio；作者数据在原有 byline 管理中填写，未改写导入数据。 |
 | 文章目录 | 保留原模板 h2/h3 目录和交叉观察高亮；初始化时清空旧列表，避免重复构建。 |
 | 文章版权 | 正文、作者与原文地址；正文和显示开关可配置。 |
-| Telegram 发布通知 | 默认关闭；token/chat id 使用服务端环境变量。手动首次发布或人工预约后首次发布才有资格，导入/系统/插件发布不主动获取资格，已发布文章更新不通知。KV 原子认领去重，失败只记录安全日志、不自动重试，避免重复通知。实际发送仍待所有者配置后验收。 |
+| Telegram 通知与评论回复 | 默认关闭；Bot Token（加密密钥）、频道 ID、Owner ID 在主题插件设置中填写。首次发布通知文章频道；更新及迁移导入不通知。评论通知 Owner 私信，Owner 回复该消息后通过 Telegram Webhook 创建站点子评论；Webhook 校验 Telegram secret token 和 Owner ID，并走 EmDash 正常评论审核流程。实际发送仍待所有者配置后验收。 |
 | 透明导航 | 可配置半透明模式，滚动后提高不透明度；移动端保留可换行导航。 |
 | 社交设置 | Telegram 频道、Email、GitHub、Twitter、Telegram 用户名；不合法协议不输出链接。 |
 | 混合头像 | 已审核且所属内容已发布的评论才返回头像 URL；QQ → Gravatar → 本地随机几何头像，不返回邮箱或审核信息。第三方头像可用性依赖外部服务。作者头像沿用 EmDash byline 媒体。 |
@@ -74,7 +74,7 @@
 - 在 EmDash 管理后台的插件列表中打开“土豆 · 主题与功能”（`dmesg-theme`）的设置。配置存入现有数据库中的插件命名空间。
 - 公告为每行一条纯文本；头部、统计、页尾三个字段接受所有者信任的 HTML。社交地址为空时不显示。
 - 站名、tagline、菜单、widget 和作者介绍仍使用 EmDash 原有管理入口，不重复保存。
-- Telegram 配置：服务端设置 `TELEGRAM_BOT_TOKEN`、`TELEGRAM_CHAT_ID`、正确的 `EMDASH_SITE_URL`；导入完成后再开启插件通知开关。Docker Compose 已透传相应变量。测试没有连接真实 Telegram。
+- Telegram 配置：在插件设置填写 Bot Token、频道 ID 和 Owner ID；开启后，首次文章发布或新评论时插件会用 EmDash 站点 URL 调用 Telegram `setWebhook` 注册 Webhook。站点须有公网 HTTPS 域名，Owner 须先主动打开 Bot 私聊。首次发布只通知一次；文章更新及导入不通知。测试没有连接真实 Telegram。
 - `COMMENT_BLOCKED_IPS` 为逗号分隔的原始 IP；反向代理部署时先核对 adapter 的地址来源。IP 哈希规则可在插件中填写。
 
 ### 验证证据

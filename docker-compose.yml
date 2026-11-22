@@ -3,7 +3,7 @@ services:
   emdash:
     image: ghcr.io/bennythink/blog:latest
     ports:
-      - "127.0.0.1:${EMDASH_PORT:-4321}:4321"
+      - "127.0.0.1:4321:4321"
     env_file:
       - .env
     volumes:
