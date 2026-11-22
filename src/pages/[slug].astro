@@ -28,7 +28,7 @@ if (!page) {
 	if (Astro.cache?.enabled) Astro.cache.set(categories.cacheHint);
 	const category = categories.data.find(term => term.slug === slug);
 	if (category) {
-		return Astro.redirect(`/category/${encodeURIComponent(category.slug)}${Astro.url.search}`, 301);
+		return Astro.rewrite(`/category/${encodeURIComponent(category.slug)}${Astro.url.search}`);
 	}
 	return Astro.rewrite("/404");
 }

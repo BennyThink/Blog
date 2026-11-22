@@ -55,7 +55,7 @@ const sizes = {
 {variant === "row" ? (
   <article class="legacy-post">
     <header class="legacy-post__heading">
-      {categories[0] && <a class="legacy-post__category" href={`/category/${categories[0].slug}`}>{categories[0].label}</a>}
+      {categories[0] && <a class="legacy-post__category" href={`/${categories[0].slug}`}>{categories[0].label}</a>}
       <Heading class="legacy-post__title" {...post.edit.title}><a href={href}>{title}</a></Heading>
     </header>
     <div class="legacy-post__preview">

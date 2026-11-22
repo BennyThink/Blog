@@ -166,14 +166,14 @@ const hasHeadings = (post.data.content ?? []).some(
       <div class="article-column">
         <nav class="article-breadcrumbs" aria-label="面包屑">
           <a href="/" title="返回首页" aria-label="返回首页"><ArticleIcon name="home" /></a><small aria-hidden="true"> &gt; </small>
-          {categories[0] && <><a href={`/category/${categories[0].slug}`}>{categories[0].label}</a><small aria-hidden="true"> &gt; </small></>}
+          {categories[0] && <><a href={`/${categories[0].slug}`}>{categories[0].label}</a><small aria-hidden="true"> &gt; </small></>}
           <span class="muted" aria-current="page">{post.data.title}</span>
         </nav>
         <div class="article-paper">
           <header class="article-heading">
             <h1 {...post.edit.title}>{post.data.title}</h1>
             <div class="article-dateline article-meta">
-              {categories[0] && <span id="mute-category" class="muted"><ArticleIcon name="category" /><a href={`/category/${categories[0].slug}`}> {categories[0].label}</a></span>}
+              {categories[0] && <span id="mute-category" class="muted"><ArticleIcon name="category" /><a href={`/${categories[0].slug}`}> {categories[0].label}</a></span>}
               <span class="muted"><ArticleIcon name="user" /> <a href={authorHref}>{authorName}</a></span>
               {publishedAt && <time class="muted" datetime={publishedAt.toISOString()}><ArticleIcon name="clock" /> {formatAge(publishedAt)} ({formatDate(publishedAt, "long")})</time>}
               {typeof post.data.views === "number" && <span class="muted"><ArticleIcon name="eye" /> {post.data.views} 次浏览</span>}

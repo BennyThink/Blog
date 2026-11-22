@@ -115,7 +115,7 @@ const loggedIn = Boolean(Astro.locals.user);
     <h2>文章分类</h2>
     {categoryTerms.length > 0 ? (
       <ul class="sidebar-categories">
-        {categoryTerms.map(term => <li><a href={`/category/${term.slug}`}>{term.label}</a> <span>({term.count ?? 0})</span></li>)}
+        {categoryTerms.map(term => <li><a href={`/${term.slug}`}>{term.label}</a> <span>({term.count ?? 0})</span></li>)}
       </ul>
     ) : <p class="sidebar-empty">暂无分类。</p>}
   </section>

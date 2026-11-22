@@ -6,8 +6,8 @@ import {
 	decodeSlug,
 } from "emdash";
 import Base from "../../layouts/Base.astro";
-import PostCard from "../../components/PostCard.astro";
 import Pagination from "../../components/Pagination.astro";
+import ThemePostList from "../../components/ThemePostList.astro";
 
 const slug = decodeSlug(Astro.params.slug);
 const termsResult = await getTaxonomyTermsWithCacheHint("category", {
@@ -83,19 +83,14 @@ const filteredPosts = posts.map((post) => ({
 			{
 				filteredPosts.length > 0 ? (
 					<>
-						<div class="post-grid">
-							{filteredPosts.map(({ post, tags }) => (
-								<PostCard
-									post={post}
-									tags={tags.map((t) => ({ slug: t.slug, label: t.label }))}
-								/>
-							))}
-						</div>
-						<Pagination
-							basePath={`/category/${term.slug}`}
-							cursor={cursor}
-							nextCursor={nextCursor}
-						/>
+						<ThemePostList posts={posts}>
+							<Pagination
+								slot="pagination"
+								basePath={`/${term.slug}`}
+								cursor={cursor}
+								nextCursor={nextCursor}
+							/>
+						</ThemePostList>
 					</>
 				) : (
 					<div class="empty-state">
@@ -109,7 +104,7 @@ const filteredPosts = posts.map((post) => ({
 						</p>
 						<div class="empty-state__actions">
 							<a
-								href={cursor ? `/category/${term.slug}` : "/posts"}
+								href={cursor ? `/${term.slug}` : "/posts"}
 								class="btn btn--ghost"
 							>
 								{cursor ? "Back to the first page" : "Browse all posts"}
