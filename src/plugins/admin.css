@@ -1,0 +1,82 @@
+.theme-settings {
+  max-width: 56rem;
+  padding: clamp(1rem, 4vw, 2rem);
+  color: var(--color-kumo-default, CanvasText);
+}
+
+.theme-settings h1 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.theme-settings__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .375rem;
+  padding-block-end: .5rem;
+  border-block-end: 1px solid var(--color-kumo-line, GrayText);
+}
+
+.theme-settings button {
+  cursor: pointer;
+}
+
+.theme-settings__tabs button,
+.theme-settings__save {
+  border: 1px solid transparent;
+  border-radius: .375rem;
+  padding: .5rem .75rem;
+}
+
+.theme-settings__tabs button[aria-selected="true"] {
+  border-color: var(--color-kumo-line, GrayText);
+  background: var(--color-kumo-control, Field);
+  font-weight: 600;
+}
+
+.theme-settings fieldset {
+  display: grid;
+  gap: 1rem;
+  max-width: 38rem;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 1.25rem 0 0;
+  border: 0;
+}
+
+.theme-settings__field {
+  display: grid;
+  gap: .375rem;
+}
+
+.theme-settings__toggle {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.theme-settings :is(input:not([type="checkbox"]), textarea, select) {
+  box-sizing: border-box;
+  width: 100%;
+  padding: .5rem .625rem;
+  border: 1px solid var(--color-kumo-line, GrayText);
+  border-radius: .375rem;
+  background: var(--color-kumo-control, Field);
+}
+
+.theme-settings textarea {
+  resize: vertical;
+}
+
+.theme-settings__save {
+  justify-self: start;
+  background: var(--color-kumo-brand, Highlight);
+  color: var(--color-kumo-brand-on, HighlightText);
+  font-weight: 600;
+}
+
+.theme-settings :focus-visible {
+  outline: 2px solid var(--color-kumo-focus, Highlight);
+  outline-offset: 2px;
+}

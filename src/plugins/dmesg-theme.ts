@@ -13,7 +13,11 @@ export function createPlugin() {
     storage: { likes: { indexes: ["postId"] } },
     capabilities: ["hooks.page-fragments:register", "users:read", "comments:read", "content:read", "hooks.content-policy:register", "network:request"],
     allowedHosts: ["api.telegram.org", "rest.akismet.com"],
-    admin: { settingsSchema, portableTextBlocks: portableTextBlocks as PluginAdminConfig["portableTextBlocks"] },
+    admin: {
+      pages: [{ path: "/settings", label: "主题设置", icon: "settings" }],
+      settingsSchema,
+      portableTextBlocks: portableTextBlocks as PluginAdminConfig["portableTextBlocks"],
+    },
     routes: {
       "telegram-webhook": {
         public: true,
