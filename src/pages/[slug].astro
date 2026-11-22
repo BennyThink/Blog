@@ -8,6 +8,7 @@ import {
 } from "emdash";
 import { PortableText } from "emdash/ui";
 import CategoryArchive from "../components/CategoryArchive.astro";
+import DateArchive from "../components/DateArchive.astro";
 import Guestbook from "../components/Guestbook.astro";
 import HighlightedCode from "../components/HighlightedCode.astro";
 import Base from "../layouts/Base.astro";
@@ -26,7 +27,8 @@ const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 let category;
-if (!page) {
+const archiveYear = /^\d{4}$/.test(slug) ? Number(slug) : null;
+if (!page && archiveYear === null && !/^[0-9]{4}$/.test(slug)) {
 	const categories = await getTaxonomyTermsWithCacheHint("category", { includeCounts: false });
 	if (Astro.cache?.enabled) Astro.cache.set(categories.cacheHint);
 	category = categories.data.find(term => term.slug === slug);
@@ -42,7 +44,9 @@ const seo = page
 	: undefined;
 ---
 
-{category ? (
+{archiveYear !== null && archiveYear >= 1000 && archiveYear <= 9998 ? (
+	<DateArchive year={archiveYear} />
+) : category ? (
 	<CategoryArchive term={category} />
 ) : page && seo && (
 	<Base
