@@ -38,6 +38,7 @@ export const settingsSchema: Record<string, SettingField> = {
   maxLinkLength: { type: "number", label: "评论内链接最大长度（0 不限制）", default: 0, min: 0 },
   mixedAvatars: { type: "boolean", label: "启用混合评论头像（关闭后使用默认头像）", default: true },
   qqAvatars: { type: "boolean", label: "优先使用 QQ 邮箱头像", default: true },
+	  akismetApiKey: { type: "secret", label: "Akismet API Key（留空关闭）" },
 	proxyUrl: { type: "url", label: "WebP Cloud Services Proxy URL（留空关闭）" },
 };
 

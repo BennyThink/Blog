@@ -59,6 +59,7 @@
 | 面包屑 | 首页 → 文章 → 分类，使用文章已加载的 `category` 数据。 |
 | pangu | 旧主题 pangu 3.3.0 改为模块加载，限正文与卡片标题，保留库自身对代码/编辑区的排除。验证正文中数字及中英文空格已生效。 |
 | 垃圾评论屏蔽 | `src/plugins/comment-rules.ts` 与 `comment:beforeCreate`：汉字/日文过滤、关键词、邮箱和链接长度阈值。原始 IP 黑名单通过服务端 `COMMENT_BLOCKED_IPS` 中间件，使用 adapter 提供的地址，不信任任意转发头。 |
+| Akismet | 在插件设置填写 API Key 后，每条访客评论会调用 Akismet `comment-check`；垃圾判定拒绝评论，API 错误时 fail-open 并记录警告。EmDash hook 不提供原始 IP，因此需要服务端设置 `COMMENT_AKISMET_IP` 为受信任来源的评论者 IP，否则该字段为空，需完善适配器传递方式后准确启用。 |
 | 作者模块 | 使用 EmDash byline 名称、头像与 bio；作者数据在原有 byline 管理中填写，未改写导入数据。 |
 | 文章目录 | 保留原模板 h2/h3 目录和交叉观察高亮；初始化时清空旧列表，避免重复构建。 |
 | 文章版权 | 正文、作者与原文地址；正文和显示开关可配置。 |
@@ -74,8 +75,9 @@
 - 在 EmDash 管理后台的插件列表中打开“土豆 · 主题与功能”（`dmesg-theme`）的设置。配置存入现有数据库中的插件命名空间。
 - 公告为每行一条纯文本；头部、统计、页尾三个字段接受所有者信任的 HTML。社交地址为空时不显示。
 - 站名、tagline、菜单、widget 和作者介绍仍使用 EmDash 原有管理入口，不重复保存。
-- Telegram 配置：在插件设置填写 Bot Token、频道 ID 和 Owner ID；开启后，首次文章发布或新评论时插件会用 EmDash 站点 URL 调用 Telegram `setWebhook` 注册 Webhook。站点须有公网 HTTPS 域名，Owner 须先主动打开 Bot 私聊。首次发布只通知一次；文章更新及导入不通知。测试没有连接真实 Telegram。
+- Telegram 配置：从后台插件菜单打开“Telegram 通知”页。关闭时只显示总开关；开启后显示 Bot Token、频道 ID 和 Owner ID。保存后插件用 EmDash 站点 URL 调用 Telegram `setWebhook` 注册 Webhook；Token 以 EmDash 加密密钥加密保存。站点须有公网 HTTPS 域名，Owner 须先主动打开 Bot 私聊。首次发布只通知一次；文章更新及导入不通知。测试没有连接真实 Telegram。
 - `COMMENT_BLOCKED_IPS` 为逗号分隔的原始 IP；反向代理部署时先核对 adapter 的地址来源。
+- Akismet 使用 secret 设置保存 API Key；其 `comment-check` 需要提交评论 IP、站点地址、作者和正文。[Akismet API 文档](https://akismet.com/developers/detailed-docs/comment-check/)
 
 ### 验证证据
 

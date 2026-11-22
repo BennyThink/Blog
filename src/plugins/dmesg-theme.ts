@@ -1,6 +1,6 @@
 import { definePlugin } from "emdash";
 import type { PluginAdminConfig, PluginContext } from "emdash";
-import { decryptPluginSetting, encryptPluginSetting, isEncryptedPluginSetting } from "emdash";
+import { decodePluginSettingValue, encryptPluginSetting, isEncryptedPluginSetting } from "emdash";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { readPublicSettings, settingsSchema } from "../theme/settings.ts";
 import { rejectsComment, type CommentRules } from "./comment-rules.ts";
@@ -12,8 +12,12 @@ export function createPlugin() {
     description: "旧站主题适配、公告、SEO、评论规则及 Telegram 通知。",
     storage: { likes: { indexes: ["postId"] } },
     capabilities: ["hooks.page-fragments:register", "users:read", "comments:read", "content:read", "hooks.content-policy:register", "network:request"],
-    allowedHosts: ["api.telegram.org"],
-    admin: { settingsSchema, portableTextBlocks: portableTextBlocks as PluginAdminConfig["portableTextBlocks"] },
+    allowedHosts: ["api.telegram.org", "rest.akismet.com"],
+    admin: {
+      settingsSchema,
+      pages: [{ path: "/telegram", label: "Telegram 通知", icon: "telegram" }],
+      portableTextBlocks: portableTextBlocks as PluginAdminConfig["portableTextBlocks"],
+    },
     routes: {
       "telegram-settings": {
         methods: ["GET", "POST"],
@@ -189,6 +193,36 @@ export function createPlugin() {
           return [key, typeof value === typeof fallback ? value : fallback];
         }))) as unknown as CommentRules;
         if (rejectsComment(event.comment, rules)) return false;
+        const apiKey = String(await ctx.settings.get<string>("akismetApiKey") ?? "").trim();
+        if (!apiKey) return;
+        const params = new URLSearchParams({
+          api_key: apiKey,
+          blog: ctx.site.url,
+          // EmDash stores only an IP hash in comment events; never send that hash as if it were a raw IP.
+          user_ip: process.env.COMMENT_AKISMET_IP ?? "",
+          user_agent: event.comment.userAgent ?? "",
+          comment_type: event.comment.parentId ? "reply" : "comment",
+          comment_author: event.comment.authorName,
+          comment_author_email: event.comment.authorEmail,
+          comment_content: event.comment.body,
+          blog_lang: "zh-CN",
+          blog_charset: "UTF-8",
+        });
+        const content = await ctx.content!.get(event.comment.collection, event.comment.contentId);
+        if (content?.slug) params.set("permalink", new URL(event.comment.collection === "posts" ? `/${encodeURIComponent(content.slug)}.html` : `/pages/${encodeURIComponent(content.slug)}`, ctx.site.url).href);
+        try {
+          const response = await ctx.http!.fetch("https://rest.akismet.com/1.1/comment-check", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: params,
+            signal: AbortSignal.timeout(8000),
+          });
+          const verdict = (await response.text()).trim().toLowerCase();
+          if (verdict === "true") return false;
+          if (verdict !== "false") ctx.log.warn("Akismet 返回无法识别的结果，评论继续按站点现有规则处理。", { status: response.status });
+        } catch {
+          ctx.log.warn("Akismet 请求失败，评论继续按站点现有规则处理。");
+        }
       },
       "content:beforeSchedule": async (event, ctx) => {
         if (event.collection !== "posts" || event.content.publishedAt || !event.actor) return;
@@ -260,7 +294,11 @@ interface TelegramCommentMapping {
 async function getTelegramToken(ctx: PluginContext): Promise<string | null> {
   const value = await ctx.settings.get<unknown>("telegramBotToken");
   if (typeof value === "string") return value;
-  if (isEncryptedPluginSetting(value)) return decryptPluginSetting("dmesg-theme", "telegramBotToken", value);
+  if (isEncryptedPluginSetting(value)) {
+    return decodePluginSettingValue<string>("dmesg-theme", "telegramBotToken", value, {
+      telegramBotToken: { type: "secret", label: "Telegram Bot Token" },
+    });
+  }
   return null;
 }
 
