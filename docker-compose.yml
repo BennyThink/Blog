@@ -1,10 +1,7 @@
 name: tudou-emdash
 services:
   emdash:
-    build:
-      context: .
-      args:
-        EMDASH_SITE_URL: ${EMDASH_SITE_URL:-http://localhost:4321}
+    image: ghcr.io/bennythink/blog:latest
     ports:
       - "127.0.0.1:${EMDASH_PORT:-4321}:4321"
     environment:
