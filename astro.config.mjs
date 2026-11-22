@@ -36,8 +36,6 @@ export default defineConfig({
                 id: "dmesg-theme", version: "0.1.0", format: "native",
                 entrypoint: fileURLToPath(new URL("./src/plugins/dmesg-theme.ts", import.meta.url)),
                 componentsEntry: fileURLToPath(new URL("./src/plugins/portable-text/index.ts", import.meta.url)),
-                adminEntry: fileURLToPath(new URL("./src/plugins/admin.tsx", import.meta.url)),
-                adminPages: [{ path: "/telegram", label: "Telegram 通知", icon: "telegram" }],
                 options: {},
             }],
 			database: sqlite({ url: process.env.EMDASH_DATABASE_URL || "file:./data/sqlite/emdash.db" }),

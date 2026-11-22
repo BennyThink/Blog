@@ -11,6 +11,10 @@ export const publicDefaults = {
 };
 export type ThemeSettings = typeof publicDefaults;
 export const settingsSchema: Record<string, SettingField> = {
+  telegramEnabled: { type: "boolean", label: "启用 Telegram 文章与评论通知", default: false },
+  telegramBotToken: { type: "secret", label: "Telegram Bot Token" },
+  telegramChannelId: { type: "string", label: "Telegram 频道 ID" },
+  telegramOwnerId: { type: "string", label: "Telegram Owner ID" },
   announcements: { type: "string", label: "公告（每行一条，纯文本）", multiline: true },
   fortunes: { type: "boolean", label: "动态格言", default: true },
   searchPlaceholder: { type: "string", label: "搜索框占位文本", default: publicDefaults.searchPlaceholder },

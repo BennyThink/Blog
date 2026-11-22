@@ -1,7 +1,7 @@
 import { definePlugin } from "emdash";
 import type { PluginAdminConfig, PluginContext } from "emdash";
-import { decodePluginSettingValue, encryptPluginSetting, isEncryptedPluginSetting } from "emdash";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { getRequestContext } from "emdash";
 import { readPublicSettings, settingsSchema } from "../theme/settings.ts";
 import { rejectsComment, type CommentRules } from "./comment-rules.ts";
 import { portableTextBlocks } from "./portable-text/config.mjs";
@@ -13,29 +13,8 @@ export function createPlugin() {
     storage: { likes: { indexes: ["postId"] } },
     capabilities: ["hooks.page-fragments:register", "users:read", "comments:read", "content:read", "hooks.content-policy:register", "network:request"],
     allowedHosts: ["api.telegram.org", "rest.akismet.com"],
-    admin: {
-      settingsSchema,
-      pages: [{ path: "/telegram", label: "Telegram 通知", icon: "telegram" }],
-      portableTextBlocks: portableTextBlocks as PluginAdminConfig["portableTextBlocks"],
-    },
+    admin: { settingsSchema, portableTextBlocks: portableTextBlocks as PluginAdminConfig["portableTextBlocks"] },
     routes: {
-      "telegram-settings": {
-        methods: ["GET", "POST"],
-        handler: async (route) => {
-          if (route.request.method === "GET") return readTelegramSettings(route);
-          const input = route.input && typeof route.input === "object" ? route.input as Record<string, unknown> : {};
-          if (typeof input.enabled !== "boolean" || typeof input.channelId !== "string" || typeof input.ownerId !== "string" ||
-              (input.token !== undefined && typeof input.token !== "string")) return { ok: false, error: "INVALID_SETTINGS" };
-          const channelId = input.channelId.trim();
-          const ownerId = input.ownerId.trim();
-          const token = typeof input.token === "string" ? input.token.trim() : "";
-          await route.settings.set("telegramEnabled", input.enabled);
-          await route.settings.set("telegramChannelId", channelId);
-          await route.settings.set("telegramOwnerId", ownerId);
-          if (token) await route.settings.set("telegramBotToken", await encryptPluginSetting("dmesg-theme", "telegramBotToken", token));
-          return readTelegramSettings(route);
-        },
-      },
       "telegram-webhook": {
         public: true,
         methods: ["POST"],
@@ -94,17 +73,6 @@ export function createPlugin() {
               else await route.kv.delete(updateKey);
             }
           }
-        },
-      },
-      "telegram-setup": {
-        methods: ["POST"],
-        handler: async (route) => {
-          const token = await getTelegramToken(route);
-          const channelId = String(await route.settings.get<string>("telegramChannelId") ?? "").trim();
-          const ownerId = String(await route.settings.get<string>("telegramOwnerId") ?? "").trim();
-          if (!token || !channelId || !ownerId) return { ok: false, error: "请先填写 Bot Token、频道 ID 和 Owner ID。" };
-          const registered = await registerTelegramWebhook(route, token);
-          return registered ? { ok: true, message: "Telegram Webhook 已注册。" } : { ok: false, error: "Webhook 注册失败，请检查站点 HTTPS 地址和 Bot Token。" };
         },
       },
       "like-count": {
@@ -199,7 +167,7 @@ export function createPlugin() {
           api_key: apiKey,
           blog: ctx.site.url,
           // EmDash stores only an IP hash in comment events; never send that hash as if it were a raw IP.
-          user_ip: process.env.COMMENT_AKISMET_IP ?? "",
+          user_ip: getRequestContext()?.commentClientIp ?? "",
           user_agent: event.comment.userAgent ?? "",
           comment_type: event.comment.parentId ? "reply" : "comment",
           comment_author: event.comment.authorName,
@@ -292,29 +260,7 @@ interface TelegramCommentMapping {
 }
 
 async function getTelegramToken(ctx: PluginContext): Promise<string | null> {
-  const value = await ctx.settings.get<unknown>("telegramBotToken");
-  if (typeof value === "string") return value;
-  if (isEncryptedPluginSetting(value)) {
-    return decodePluginSettingValue<string>("dmesg-theme", "telegramBotToken", value, {
-      telegramBotToken: { type: "secret", label: "Telegram Bot Token" },
-    });
-  }
-  return null;
-}
-
-async function readTelegramSettings(ctx: PluginContext) {
-  const [enabled, channelId, ownerId, token] = await Promise.all([
-    ctx.settings.get<boolean>("telegramEnabled"),
-    ctx.settings.get<string>("telegramChannelId"),
-    ctx.settings.get<string>("telegramOwnerId"),
-    ctx.settings.get<unknown>("telegramBotToken"),
-  ]);
-  return {
-    enabled: enabled === true,
-    channelId: typeof channelId === "string" ? channelId : "",
-    ownerId: typeof ownerId === "string" ? ownerId : "",
-    tokenConfigured: typeof token === "string" || isEncryptedPluginSetting(token),
-  };
+  return ctx.settings.get<string>("telegramBotToken");
 }
 
 interface TelegramUpdate {
