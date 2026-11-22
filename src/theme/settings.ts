@@ -41,7 +41,7 @@ export const settingsSchema: Record<string, SettingField> = {
   mixedAvatars: { type: "boolean", label: "启用混合评论头像（关闭后使用默认头像）", default: true },
   qqAvatars: { type: "boolean", label: "优先使用 QQ 邮箱头像", default: true },
   telegramEnabled: { type: "boolean", label: "启用新文章 Telegram 通知（迁移完成后开启）", default: false },
-	proxyUrl: { type: "url", label: "Proxy URL（WebP Cloud；留空关闭）" },
+	proxyUrl: { type: "url", label: "WebP Cloud Services Proxy URL（留空关闭）" },
 };
 
 export async function readPublicSettings(settings: { get<T>(key: string): Promise<T | null> }): Promise<ThemeSettings> {

@@ -1,10 +1,10 @@
 ---
 import { getThemeSettings, safeSocialUrl } from "../theme/settings";
-import { EnvelopeSimple, GithubLogo, TelegramLogo, TwitterLogo } from "@phosphor-icons/react/ssr";
+import { Broadcast, EnvelopeSimple, GithubLogo, TelegramLogo, TwitterLogo } from "@phosphor-icons/react/ssr";
 
 const settings = await getThemeSettings(Astro.locals, Astro.request);
 const links = [
-  { label: "Telegram 频道", url: safeSocialUrl(settings.telegramChannel), Icon: TelegramLogo },
+  { label: "Telegram 频道", url: safeSocialUrl(settings.telegramChannel), Icon: Broadcast },
   { label: "Email", url: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.email) ? `mailto:${settings.email}` : undefined, Icon: EnvelopeSimple },
   { label: "GitHub", url: safeSocialUrl(settings.github), Icon: GithubLogo },
   { label: "Twitter", url: safeSocialUrl(settings.twitter), Icon: TwitterLogo },

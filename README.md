@@ -17,7 +17,7 @@ docker compose up -d --build
 
 留言板使用 `/message` 页面及其关联评论。Docker 启动时会更新已有数据库的留言配置。直接用 `npm run dev` 启动恢复后的本地数据库时，先运行 `node scripts/migrate-post-urls.mjs`。
 
-图片代理可在后台「插件 → 土豆 · 主题与功能」设置 `Proxy URL`（例如 `https://7bc5d24.webp.ee`）。留空时图片继续使用 EmDash 原始媒体地址；填写后，本站媒体 URL 的主机名会替换为该代理地址，并保留原路径与查询参数。
+图片代理可在后台「插件 → 土豆 · 主题与功能」设置 `WebP Cloud Services Proxy URL`（例如 `https://7bc5d24.webp.ee`）。留空时图片继续使用 EmDash 原始媒体地址；填写后，本站媒体 URL 的主机名会替换为该代理地址，并保留原路径与查询参数。
 
 ---
 
