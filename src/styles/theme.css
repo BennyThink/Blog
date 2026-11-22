@@ -114,6 +114,42 @@ a { text-underline-offset: .2em; }
 .home-pagination > .home-pagination__ellipsis { min-width: 24px; padding-inline: 2px; border-color: transparent; background: transparent; color: var(--color-muted); }
 .home-pagination > .home-pagination__prev,
 .home-pagination > .home-pagination__next { min-width: 72px; font-size: .8125rem; }
+
+/* WordPress editor quick inserts, rendered as EmDash Portable Text blocks. */
+.prose .wp-insert--notice { margin-block: .75rem; padding: 15px 15px 15px 35px; border: 1px solid; border-radius: 2px; line-height: 1.65; }
+.prose .wp-insert--alert { margin-block: .75rem 1.25rem; padding: 10px 35px 10px 14px; border: 1px solid; border-radius: 2px; text-shadow: 0 1px 0 light-dark(rgb(255 255 255 / .5), rgb(0 0 0 / .18)); }
+.prose .wp-insert--sc_notice { border-color: light-dark(#aac66d, #667c43); background: light-dark(#ecf2d6, #29311e); color: light-dark(#7da33c, #b7ce83); }
+.prose .wp-insert--sc_error, .prose .wp-insert--alert-error { border-color: light-dark(#ebb1b1, #805354); background: light-dark(#ffecea, #382526); color: light-dark(#c66, #f09191); }
+.prose .wp-insert--sc_warn, .prose .wp-insert--alert-warning { border-color: light-dark(#eac946, #806f32); background: light-dark(#fff4b9, #39331d); color: light-dark(#ad9948, #e2cc74); }
+.prose .wp-insert--sc_tips { border-color: light-dark(#ccc, #555); background: light-dark(#eaeaea, #2a2c2b); color: light-dark(#777, #c1c4c2); }
+.prose .wp-insert--sc_blue, .prose .wp-insert--alert-info { border-color: light-dark(#4d99d2, #386d96); background: light-dark(#dbe7f8, #1e2a38); color: light-dark(#4d99d2, #83b7df); }
+.prose .wp-insert--sc_act { padding: 10px 15px; border-color: light-dark(#e3e3e3, #3c4440); border-inline-start: 3px solid light-dark(#3dabce, #64b7d2); background: var(--color-surface); }
+.prose .wp-insert--sc_act:hover { background: var(--color-fill); }
+.prose .wp-insert--alert-success { border-color: light-dark(#d6e9c6, #506642); background: light-dark(#dff0d8, #283421); color: light-dark(#56af45, #9cce8e); }
+.prose .wp-insert--alert-info { border-color: light-dark(#bce8f1, #3b6976); background: light-dark(#d9edf7, #1f3036); color: light-dark(#3a87ad, #80bad2); }
+.prose .wp-insert--button { display: inline-block; margin: .25rem .35rem .25rem 0; padding: 6px 12px; border: 1px solid; border-radius: 4px; text-decoration: none; font: 700 .8125rem Arial, sans-serif; cursor: pointer; transition: filter .15s ease, transform .15s ease; }
+.prose .wp-insert--button:hover { filter: brightness(.92); text-decoration: none; }
+.prose .wp-insert--button:active { transform: translateY(1px); }
+.prose .wp-insert--greenbtn { border-color: #4b8f29; background: linear-gradient(#77b55a, #72b352); box-shadow: 0 6px 10px -7px #3e7327; color: white; text-shadow: 0 1px #5b8a3c; }
+.prose .wp-insert--bluebtn { padding-inline: 24px; border-color: #124d77; border-radius: 3px; background: linear-gradient(#007dc1, #0061a7); box-shadow: inset 0 1px #54a3f7; color: white; text-shadow: 0 1px #154682; }
+.prose .wp-insert--yellowbtn { border-color: #fa2; border-radius: 6px; background: linear-gradient(#ffec64, #ffab23); box-shadow: inset 0 1px #fff6af; color: #333; text-shadow: 0 1px #fe6; }
+.prose .wp-insert--lhb { padding: 5px 24px; border-color: #4094ef; background: transparent; box-shadow: 0 1px 3px rgb(0 0 0 / .1); color: #4094ef; font: 1.1875rem "Microsoft YaHei", sans-serif; }
+.prose .wp-insert--lhb:hover { border-color: #4094ef; background: #4094ef; color: #fff; }
+.prose .wp-insert--legacy-link { border-color: #348363; background: linear-gradient(light-dark(#77b55a, #3a7654), light-dark(#72b352, #28563d)); color: white; text-decoration: none; }
+.prose .wp-insert--legacy-action, .prose .wp-insert--download-card, .prose .wp-insert--restricted { margin-block: 1rem; padding: 1rem 1.25rem; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
+.prose .wp-insert--legacy-action p, .prose .wp-insert--download-card p, .prose .wp-insert--restricted p { margin: .5rem 0 0; }
+.prose .wp-insert--download-card h3 { margin: 0 0 .75rem; font-size: 1rem; }
+.prose .wp-insert--download-card dl { display: grid; grid-template-columns: max-content 1fr; gap: .4rem .75rem; margin: 0; }
+.prose .wp-insert--download-card dd { margin: 0; overflow-wrap: anywhere; }
+.prose .wp-insert--collapse { margin-block: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
+.prose .wp-insert--collapse summary { padding: .75rem 1rem; color: var(--color-brand); cursor: pointer; }
+.prose .wp-insert--collapse > div { padding: 0 1rem 1rem; white-space: pre-wrap; }
+.prose .wp-insert--media, .prose .wp-insert--music { display: block; width: 100%; max-width: 100%; border: 0; border-radius: var(--radius); }
+.prose .wp-insert--music { min-height: 86px; }
+.prose .wp-insert--mark { padding-inline: .15em; background: light-dark(#fff0a8, #5c4c17); color: inherit; }
+.prose .wp-insert--center { display: block; text-align: center; }
+.prose .wp-insert--indent { text-indent: 2em; }
+
 @media (max-width: 600px) {
   .theme-more { min-height: 60px; padding-inline: 28px; font-size: 1.25rem; }
   .theme-all-posts { margin-left: 20px; font-size: 1.25rem; }

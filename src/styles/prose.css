@@ -114,15 +114,28 @@
 		line-height: 0;
 	}
 
-	.prose :not(pre) > code {
-		padding: 0.15em 0.35em;
-		border-radius: var(--radius-sm);
-		background: var(--color-fill);
-		color: var(--color-text);
-		font-family: var(--font-mono);
-		font-size: 0.85em;
+	.prose code:not(pre code) {
+		padding: 2px 4px;
+		border: 1px solid light-dark(#e1e1e8, #3b403f);
+		border-radius: 3px;
+		background: light-dark(#fbfbfb, #202523);
+		color: light-dark(#d14, #ff7186);
+		font-family: Consolas, "Bitstream Vera Sans Mono", "Courier New", Courier, monospace;
+		font-size: .875rem;
+		word-wrap: break-word;
+		word-break: break-all;
 		box-decoration-break: clone;
 		-webkit-box-decoration-break: clone;
+	}
+
+	.prose pre code {
+		padding: 0;
+		border: 0;
+		border-radius: 0;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		word-break: normal;
 	}
 
 	/* Lists */
@@ -146,13 +159,28 @@
 
 	/* Quotes, code, rules */
 	.prose blockquote:where(:not([class*="emdash"])) {
-		padding-inline-start: 1.25em;
-		border-inline-start: 2px solid var(--color-border-strong);
-		color: var(--color-text);
+		margin: 15px auto;
+		padding: 5px 15px 10px;
+		border: 1px solid light-dark(#d6e9c6, #3d5044);
+		border-inline-start-width: 3px;
+		background: light-dark(#fafcf9, #1b211e);
+		color: var(--color-text-secondary);
+		font-size: .875rem;
 	}
 
 	.prose blockquote > * + * {
-		margin-block-start: 0.75em;
+		margin-block-start: 0;
+	}
+
+	.prose blockquote p {
+		margin: 6px 0 5px;
+		padding: 0;
+		font-size: .875rem;
+	}
+
+	.prose blockquote li {
+		margin-bottom: 5px;
+		line-height: 1.5625rem;
 	}
 
 	.prose hr {
