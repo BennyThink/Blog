@@ -97,6 +97,18 @@ function convertContent(content) {
 				else if (before) segment.push({ ...child, _key: key(), text: before });
 				const type = match[2].toLowerCase();
 				const isClose = Boolean(match[1]);
+				// These legacy players are often written as self-closing shortcodes.
+				// Treat a paired form as one removable embed; when there is no close
+				// tag, drop only the shortcode token so following prose stays intact.
+				if (!capturing && !isClose && ["audio", "netmusic"].includes(type)) {
+					const closeTag = new RegExp(`\\[\\/${type}\\s*\\]`, "i");
+					const closing = closeTag.exec(sourceText.slice(match.index + match[0].length));
+					cursor = closing
+						? match.index + match[0].length + closing.index + closing[0].length
+						: match.index + match[0].length;
+					count++;
+					continue;
+				}
 				if (!capturing && !isClose) {
 					flush();
 					captureType = type;

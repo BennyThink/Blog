@@ -81,7 +81,7 @@ const tags = post.data.terms?.tag ?? [];
 const categories = post.data.terms?.category ?? [];
 const author = bylines[0]?.byline;
 const authorName = author?.displayName ?? "本站作者";
-const authorHref = author?.slug ? `/author/${author.slug}` : "/about-me";
+const authorHref = author?.slug ? `/author/${encodeURIComponent(author.slug)}` : "/about-me";
 const wordCount = getContentCharacterCount(post.data.content);
 const formatAge = (date: Date) => {
 	const years = Math.floor((Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000));

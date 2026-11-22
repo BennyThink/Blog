@@ -26,6 +26,7 @@ const themePluginCard = {
 };
 
 export default defineConfig({
+	site: process.env.EMDASH_SITE_URL || "http://localhost:4321",
 	output: "server",
 	session: {
 		driver: sessionDrivers.fsLite({ base: "./data/sessions" }),

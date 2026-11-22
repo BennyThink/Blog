@@ -1,5 +1,5 @@
 ---
-import { Image as EmDashPortableImage } from "emdash/ui";
+import { PTImage } from "emdash/ui";
 import { proxyMediaUrl } from "../utils/media-proxy";
 import { getThemeSettings } from "../theme/settings";
 
@@ -9,4 +9,4 @@ const asset = node?.asset;
 const proxiedUrl = proxyMediaUrl(asset?.url, proxyUrl);
 const proxiedNode = proxiedUrl ? { ...node, asset: { ...asset, url: proxiedUrl } } : node;
 ---
-<EmDashPortableImage node={proxiedNode} {...props} />
+<PTImage node={proxiedNode} {...props} />
