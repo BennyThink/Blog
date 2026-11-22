@@ -22,6 +22,6 @@
 
 当前运行方法见 [迁移说明](migration.md)，环境验收记录见 [验收记录](verification.md)。
 
-切站前的公开页面问题和复验入口见 [迁移验收问题](migration-audit/README.md)。
+切站前的公开页面问题和复验结果见 [迁移复验](04-migration-audit.md)。
 
 文章 URL 兼容已完成，规则及验证方法见 [固定链接兼容](02a-permalinks.md)。
