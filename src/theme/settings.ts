@@ -40,7 +40,10 @@ export const settingsSchema: Record<string, SettingField> = {
   maxLinkLength: { type: "number", label: "评论内链接最大长度（0 不限制）", default: 0, min: 0 },
   mixedAvatars: { type: "boolean", label: "启用混合评论头像（关闭后使用默认头像）", default: true },
   qqAvatars: { type: "boolean", label: "优先使用 QQ 邮箱头像", default: true },
-  telegramEnabled: { type: "boolean", label: "启用新文章 Telegram 通知（迁移完成后开启）", default: false },
+  telegramEnabled: { type: "boolean", label: "启用 Telegram 文章与评论通知", default: false },
+  telegramBotToken: { type: "secret", label: "Telegram Bot Token" },
+  telegramChannelId: { type: "string", label: "Telegram 频道 ID" },
+  telegramOwnerId: { type: "string", label: "Telegram Owner ID" },
 	proxyUrl: { type: "url", label: "WebP Cloud Services Proxy URL（留空关闭）" },
 };
 

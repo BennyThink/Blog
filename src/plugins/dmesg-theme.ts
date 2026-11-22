@@ -1,6 +1,6 @@
 import { definePlugin } from "emdash";
-import type { PluginAdminConfig } from "emdash";
-import { createHash } from "node:crypto";
+import type { PluginAdminConfig, PluginContext } from "emdash";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { readPublicSettings, settingsSchema } from "../theme/settings.ts";
 import { rejectsComment, type CommentRules } from "./comment-rules.ts";
 import { portableTextBlocks } from "./portable-text/config.mjs";
@@ -8,11 +8,83 @@ import { portableTextBlocks } from "./portable-text/config.mjs";
 export function createPlugin() {
   return definePlugin({
     id: "dmesg-theme", displayName: "土豆 · 主题与功能", version: "0.1.0",
-    description: "旧站主题适配、公告、SEO、评论规则及首次发布通知。",
+    description: "旧站主题适配、公告、SEO、评论规则及 Telegram 通知。",
     storage: { likes: { indexes: ["postId"] } },
-    capabilities: ["hooks.page-fragments:register", "users:read", "comments:read", "content:read", "hooks.content-policy:register"],
+    capabilities: ["hooks.page-fragments:register", "users:read", "comments:read", "content:read", "hooks.content-policy:register", "network:request"],
+    allowedHosts: ["api.telegram.org"],
     admin: { settingsSchema, portableTextBlocks: portableTextBlocks as PluginAdminConfig["portableTextBlocks"] },
     routes: {
+      "telegram-webhook": {
+        public: true,
+        methods: ["POST"],
+        request: { body: "json" },
+        handler: async (route) => {
+          const token = await route.settings.get<string>("telegramBotToken");
+          const ownerId = String(await route.settings.get<string>("telegramOwnerId") ?? "").trim();
+          const enabled = await route.settings.get<boolean>("telegramEnabled");
+          const expected = token ? telegramWebhookSecret(token) : "";
+          const supplied = route.request.headers.get("x-telegram-bot-api-secret-token") ?? "";
+          if (!enabled || !token || !ownerId || !constantTimeEqual(supplied, expected)) return { ok: true };
+
+          const update = route.input && typeof route.input === "object" ? route.input as TelegramUpdate : {};
+          const message = update.message;
+          if (!message || String(message.from?.id ?? "") !== ownerId || !message.reply_to_message?.message_id) return { ok: true };
+
+          const updateKey = `telegram:handled:${update.update_id ?? ""}`;
+          if (update.update_id !== undefined) {
+            const claim = await route.kv.compareAndSet(updateKey, null, "processing");
+            if (!claim.applied) return { ok: true };
+          }
+          let completed = false;
+          try {
+            const mappingKey = `telegram:comment:${message.chat.id}:${message.reply_to_message.message_id}`;
+            const mapping = await route.kv.get<TelegramCommentMapping>(mappingKey);
+            const body = message.text?.trim();
+            if (!mapping || !body || body.startsWith("/")) { completed = true; return { ok: true }; }
+
+            const siteUrl = route.site.url;
+            const emailDomain = new URL(siteUrl).hostname || "localhost.local";
+            const endpoint = new URL(`/_emdash/api/comments/${encodeURIComponent(mapping.collection)}/${encodeURIComponent(mapping.contentId)}`, siteUrl);
+            const response = await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Accept": "application/json" },
+              body: JSON.stringify({
+                authorName: "站长",
+                authorEmail: `telegram-owner@${emailDomain}`,
+                body,
+                parentId: mapping.commentId,
+              }),
+              signal: AbortSignal.timeout(10000),
+            });
+            const result = await response.json() as { success?: boolean; data?: { status?: string }; error?: { code?: string } };
+            if (!response.ok || result.success === false) {
+              route.log.warn("Telegram 回复未能创建为站点评论。", { code: result.error?.code ?? "COMMENT_CREATE_FAILED" });
+              return { ok: true };
+            }
+            completed = true;
+            return { ok: true };
+          } catch {
+            route.log.error("处理 Telegram 回复失败。", { updateId: update.update_id });
+            return { ok: true };
+          } finally {
+            if (update.update_id !== undefined) {
+              if (completed) await route.kv.set(updateKey, "done");
+              else await route.kv.delete(updateKey);
+            }
+          }
+        },
+      },
+      "telegram-setup": {
+        methods: ["POST"],
+        handler: async (route) => {
+          const token = await route.settings.get<string>("telegramBotToken");
+          const channelId = String(await route.settings.get<string>("telegramChannelId") ?? "").trim();
+          const ownerId = String(await route.settings.get<string>("telegramOwnerId") ?? "").trim();
+          if (!token || !channelId || !ownerId) return { ok: false, error: "请先填写 Bot Token、频道 ID 和 Owner ID。" };
+          const registered = await registerTelegramWebhook(route, token);
+          return registered ? { ok: true, message: "Telegram Webhook 已注册。" } : { ok: false, error: "Webhook 注册失败，请检查站点 HTTPS 地址和 Bot Token。" };
+        },
+      },
       "like-count": {
         public: true,
         methods: ["GET"],
@@ -86,6 +158,7 @@ export function createPlugin() {
         return fragments;
       },
       "comment:beforeCreate": async (event, ctx) => {
+        if (/^telegram-owner@/i.test(event.comment.authorEmail)) return;
         if (event.comment.collection === "pages") {
           const page = await ctx.content!.get("pages", event.comment.contentId);
           if (page?.slug !== "message") return false;
@@ -122,26 +195,95 @@ export function createPlugin() {
         if (!(await ctx.kv.get(`eligible:${id}`))) return;
         await ctx.kv.delete(`eligible:${id}`);
         if (!(await ctx.settings.get<boolean>("telegramEnabled"))) return;
-        const token = process.env.TELEGRAM_BOT_TOKEN;
-        const chatId = process.env.TELEGRAM_CHAT_ID;
-        const siteUrl = process.env.EMDASH_SITE_URL;
-        if (!token || !chatId || !siteUrl || !event.content.slug) return;
-        // Claim once before sending; never duplicate on an updated live revision.
-        const claim = await ctx.kv.compareAndSet(`notified:${id}`, null, "attempted");
-        if (!claim.applied) return;
+        const token = await ctx.settings.get<string>("telegramBotToken");
+        const chatId = String(await ctx.settings.get<string>("telegramChannelId") ?? "").trim();
+        if (!token || !chatId || !event.content.slug) return;
+        await registerTelegramWebhook(ctx, token);
         const data = event.content.data as Record<string, unknown>;
-        const url = new URL(`/${encodeURIComponent(String(event.content.slug))}.html`, siteUrl).href;
+        const url = new URL(`/${encodeURIComponent(String(event.content.slug))}.html`, ctx.site.url).href;
         try {
-          const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: chatId, text: `新的博文《 ${data.title ?? ""} 》发布了\n${url}` }),
-            signal: AbortSignal.timeout(8000),
-          });
-          const result = await response.json() as { ok?: boolean };
-          if (!response.ok || !result.ok) throw new Error("delivery failed");
-          await ctx.kv.set(`notified:${id}`, "sent");
-        } catch { ctx.log.error("Telegram 通知未确认送达；为避免重复发送，不自动重试。", { contentId: id }); }
+          await telegramApi(ctx, token, "sendMessage", { chat_id: chatId, text: `新的博文《${data.title ?? ""}》发布了\n${url}` });
+        } catch { ctx.log.error("Telegram 文章通知发送失败。", { contentId: id }); }
       } },
+      "comment:afterCreate": async (event, ctx) => {
+        if (event.comment.status === "spam" || /^telegram-owner@/i.test(event.comment.authorEmail)) return;
+        if (!(await ctx.settings.get<boolean>("telegramEnabled"))) return;
+        const token = await ctx.settings.get<string>("telegramBotToken");
+        const ownerId = String(await ctx.settings.get<string>("telegramOwnerId") ?? "").trim();
+        if (!token || !ownerId) return;
+        await registerTelegramWebhook(ctx, token);
+        const postUrl = new URL(`/${encodeURIComponent(event.content.slug)}.html#comment-${encodeURIComponent(event.comment.id)}`, ctx.site.url).href;
+        try {
+          const sent = await telegramApi(ctx, token, "sendMessage", {
+            chat_id: ownerId,
+            text: `新评论 · ${event.content.title ?? "文章"}\n${event.comment.authorName}：${event.comment.body}\n${postUrl}\n\n直接回复此消息即可在网站评论。`,
+          }) as { message_id?: number; chat?: { id?: number } };
+          if (sent.message_id !== undefined) {
+            await ctx.kv.set(`telegram:comment:${sent.chat?.id ?? ownerId}:${sent.message_id}`, {
+              commentId: event.comment.id,
+              collection: event.comment.collection,
+              contentId: event.comment.contentId,
+              slug: event.content.slug,
+            } satisfies TelegramCommentMapping);
+          }
+        } catch { ctx.log.error("Telegram 评论私信发送失败。", { commentId: event.comment.id }); }
+      },
     },
   });
+}
+
+interface TelegramCommentMapping {
+  commentId: string;
+  collection: string;
+  contentId: string;
+  slug: string;
+}
+
+interface TelegramUpdate {
+  update_id?: number;
+  message?: {
+    from?: { id?: number };
+    chat: { id: number };
+    message_id?: number;
+    text?: string;
+    reply_to_message?: { message_id?: number };
+  };
+}
+
+function telegramWebhookSecret(token: string): string {
+  return createHmac("sha256", token).update("dmesg-theme:telegram-webhook:v1").digest("hex");
+}
+
+function constantTimeEqual(left: string, right: string): boolean {
+  const a = Buffer.from(left);
+  const b = Buffer.from(right);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+async function telegramApi(ctx: PluginContext, token: string, method: string, payload: Record<string, unknown>): Promise<unknown> {
+  if (!ctx.http) throw new Error("Telegram HTTP access is unavailable");
+  const response = await ctx.http.fetch(`https://api.telegram.org/bot${token}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json() as { ok?: boolean; result?: unknown };
+  if (!response.ok || !result.ok) throw new Error("Telegram request failed");
+  return result.result;
+}
+
+async function registerTelegramWebhook(ctx: PluginContext, token: string): Promise<boolean> {
+  try {
+    const url = new URL("/_emdash/api/plugins/dmesg-theme/telegram-webhook", ctx.site.url).href;
+    await telegramApi(ctx, token, "setWebhook", {
+      url,
+      secret_token: telegramWebhookSecret(token),
+      allowed_updates: ["message"],
+      drop_pending_updates: false,
+    });
+    return true;
+  } catch {
+    ctx.log.error("Telegram Webhook 注册失败；请确认站点配置了公网 HTTPS 域名。", {});
+    return false;
+  }
 }

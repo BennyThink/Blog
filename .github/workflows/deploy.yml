@@ -36,7 +36,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: ghcr.io/${{ github.repository_owner }}/blog:latest
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.2

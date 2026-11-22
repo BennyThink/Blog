@@ -4,12 +4,8 @@ services:
     image: ghcr.io/bennythink/blog:latest
     ports:
       - "127.0.0.1:${EMDASH_PORT:-4321}:4321"
-    environment:
-      EMDASH_SITE_URL: ${EMDASH_SITE_URL:-http://localhost:4321}
-      EMDASH_ENCRYPTION_KEY: ${EMDASH_ENCRYPTION_KEY:?Generate .env with npm run secrets:init first}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
-      COMMENT_BLOCKED_IPS: ${COMMENT_BLOCKED_IPS:-}
+    env_file:
+      - .env
     volumes:
       - type: bind
         source: ./data
