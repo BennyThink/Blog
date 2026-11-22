@@ -1,8 +1,7 @@
 ---
 import { getEmDashCollection } from "emdash";
 import Base from "../../layouts/Base.astro";
-import PostCard from "../../components/PostCard.astro";
-import Pagination from "../../components/Pagination.astro";
+import ThemePostList from "../../components/ThemePostList.astro";
 const date = Astro.params.date ?? "";
 const match = /^(\d{4})(?:\/(0[1-9]|1[0-2]))?$/.exec(date);
 if (!match) return Astro.rewrite("/404");
@@ -12,18 +11,36 @@ const from = `${year}-${String(month ?? 1).padStart(2, "0")}-01T00:00:00.000Z`;
 const untilYear = month && month < 12 ? year : year + 1;
 const untilMonth = month && month < 12 ? month + 1 : 1;
 const until = `${untilYear}-${String(untilMonth).padStart(2, "0")}-01T00:00:00.000Z`;
-const cursor = Astro.url.searchParams.get("cursor") || undefined;
 const result = await getEmDashCollection("posts", {
-  where: { published_at: { gte: from, lt: until } }, orderBy: { published_at: "desc" }, limit: 20, cursor,
+  where: { published_at: { gte: from, lt: until } }, orderBy: { published_at: "desc" }, limit: 1000,
 });
 if (Astro.cache?.enabled) Astro.cache.set(result.cacheHint);
 const title = `${year} 年${month ? ` ${month} 月` : ""}归档`;
+const pageSize = 10;
+const currentPage = Math.max(1, Number(Astro.url.searchParams.get("page") ?? 1));
+const pageCount = Math.max(1, Math.ceil(result.entries.length / pageSize));
+const posts = result.entries.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+const pageHref = (page: number) => page === 1 ? `/${date}` : `/${date}?page=${page}`;
+const pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1)
+  .filter(page => page === 1 || page === pageCount || (currentPage <= 3 ? page <= 5 : page >= currentPage - 2 && page <= currentPage));
+const paginationItems = pageNumbers.flatMap((page, index) => [
+  ...(index > 0 && page - pageNumbers[index - 1] > 1 ? [{ ellipsis: true as const }] : []),
+  { ellipsis: false as const, page },
+]);
 ---
 <Base title={title}>
   <header class="band intro"><div class="frame"><p class="eyebrow">文章归档</p><h1 class="intro__title">{title}</h1></div></header>
-  <section class="band section"><div class="frame theme-post-list">
-    {result.entries.map(post => <PostCard post={post} variant="row" />)}
-    {!result.entries.length && <p>这个时间段暂无文章。</p>}
-    <Pagination basePath={`/archives/${date}`} cursor={cursor} nextCursor={result.nextCursor} />
-  </div></section>
+  <ThemePostList posts={posts}>
+    <h1 slot="heading" class="sr-only">{title}文章</h1>
+    {!posts.length && <p slot="empty">这个时间段暂无文章。</p>}
+    {pageCount > 1 && <nav slot="pagination" class="home-pagination" aria-label="归档分页">
+      {currentPage > 1 && <a class="home-pagination__prev" href={pageHref(currentPage - 1)}>上一页</a>}
+      {paginationItems.map(item => item.ellipsis
+        ? <span class="home-pagination__ellipsis" aria-hidden="true">…</span>
+        : item.page === currentPage
+          ? <span aria-current="page">{item.page}</span>
+          : <a href={pageHref(item.page)}>{item.page}</a>)}
+      {currentPage < pageCount && <a class="home-pagination__next" href={pageHref(currentPage + 1)}>下一页</a>}
+    </nav>}
+  </ThemePostList>
 </Base>
