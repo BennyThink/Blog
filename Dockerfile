@@ -6,6 +6,7 @@ COPY . .
 ARG EMDASH_SITE_URL=http://localhost:4321
 ENV EMDASH_SITE_URL=$EMDASH_SITE_URL ASTRO_TELEMETRY_DISABLED=1
 RUN npm run build && npm prune --omit=dev
+RUN rm -rf node_modules/.astro && find node_modules/echarts -type f -name '*.map' -delete
 
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
