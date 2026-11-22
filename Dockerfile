@@ -6,7 +6,7 @@ COPY . .
 ARG EMDASH_SITE_URL=http://localhost:4321
 ENV EMDASH_SITE_URL=$EMDASH_SITE_URL ASTRO_TELEMETRY_DISABLED=1
 RUN npm run build && npm prune --omit=dev
-RUN rm -rf node_modules/.astro && find node_modules/echarts -type f -name '*.map' -delete
+RUN rm -rf node_modules/.astro node_modules/typescript && find node_modules -type f -name '*.map' -delete && rolldown_binary=node_modules/@rolldown/binding-linux-x64-gnu/rolldown-binding.linux-x64-gnu.node && vite_binary=node_modules/vite/$rolldown_binary && astro_binary=node_modules/@astrojs/vite-plugin-astro/$rolldown_binary && if cmp -s "$vite_binary" "$astro_binary"; then ln -sfr "$vite_binary" "$astro_binary"; fi
 
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
