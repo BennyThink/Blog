@@ -1,5 +1,6 @@
 import { definePlugin } from "emdash";
 import type { PluginAdminConfig, PluginContext } from "emdash";
+import { decryptPluginSetting, encryptPluginSetting, isEncryptedPluginSetting } from "emdash";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { readPublicSettings, settingsSchema } from "../theme/settings.ts";
 import { rejectsComment, type CommentRules } from "./comment-rules.ts";
@@ -14,12 +15,29 @@ export function createPlugin() {
     allowedHosts: ["api.telegram.org"],
     admin: { settingsSchema, portableTextBlocks: portableTextBlocks as PluginAdminConfig["portableTextBlocks"] },
     routes: {
+      "telegram-settings": {
+        methods: ["GET", "POST"],
+        handler: async (route) => {
+          if (route.request.method === "GET") return readTelegramSettings(route);
+          const input = route.input && typeof route.input === "object" ? route.input as Record<string, unknown> : {};
+          if (typeof input.enabled !== "boolean" || typeof input.channelId !== "string" || typeof input.ownerId !== "string" ||
+              (input.token !== undefined && typeof input.token !== "string")) return { ok: false, error: "INVALID_SETTINGS" };
+          const channelId = input.channelId.trim();
+          const ownerId = input.ownerId.trim();
+          const token = typeof input.token === "string" ? input.token.trim() : "";
+          await route.settings.set("telegramEnabled", input.enabled);
+          await route.settings.set("telegramChannelId", channelId);
+          await route.settings.set("telegramOwnerId", ownerId);
+          if (token) await route.settings.set("telegramBotToken", await encryptPluginSetting("dmesg-theme", "telegramBotToken", token));
+          return readTelegramSettings(route);
+        },
+      },
       "telegram-webhook": {
         public: true,
         methods: ["POST"],
         request: { body: "json" },
         handler: async (route) => {
-          const token = await route.settings.get<string>("telegramBotToken");
+          const token = await getTelegramToken(route);
           const ownerId = String(await route.settings.get<string>("telegramOwnerId") ?? "").trim();
           const enabled = await route.settings.get<boolean>("telegramEnabled");
           const expected = token ? telegramWebhookSecret(token) : "";
@@ -77,7 +95,7 @@ export function createPlugin() {
       "telegram-setup": {
         methods: ["POST"],
         handler: async (route) => {
-          const token = await route.settings.get<string>("telegramBotToken");
+          const token = await getTelegramToken(route);
           const channelId = String(await route.settings.get<string>("telegramChannelId") ?? "").trim();
           const ownerId = String(await route.settings.get<string>("telegramOwnerId") ?? "").trim();
           if (!token || !channelId || !ownerId) return { ok: false, error: "请先填写 Bot Token、频道 ID 和 Owner ID。" };
@@ -165,7 +183,7 @@ export function createPlugin() {
         }
         // Only CMS users exist; do not apply visitor filters to the owner.
         if (event.comment.authorUserId) return;
-        const defaults: CommentRules = { requireChinese: false, blockedKeywords: "", blockedEmails: "", blockedIpHashes: "", blockLinks: false, maxLinkLength: 0 };
+        const defaults: CommentRules = { requireChinese: false, blockedKeywords: "", blockedEmails: "", maxLinkLength: 0 };
         const rules = Object.fromEntries(await Promise.all(Object.entries(defaults).map(async ([key, fallback]) => {
           const value = await ctx.settings.get(key);
           return [key, typeof value === typeof fallback ? value : fallback];
@@ -195,7 +213,7 @@ export function createPlugin() {
         if (!(await ctx.kv.get(`eligible:${id}`))) return;
         await ctx.kv.delete(`eligible:${id}`);
         if (!(await ctx.settings.get<boolean>("telegramEnabled"))) return;
-        const token = await ctx.settings.get<string>("telegramBotToken");
+        const token = await getTelegramToken(ctx);
         const chatId = String(await ctx.settings.get<string>("telegramChannelId") ?? "").trim();
         if (!token || !chatId || !event.content.slug) return;
         await registerTelegramWebhook(ctx, token);
@@ -208,7 +226,7 @@ export function createPlugin() {
       "comment:afterCreate": async (event, ctx) => {
         if (event.comment.status === "spam" || /^telegram-owner@/i.test(event.comment.authorEmail)) return;
         if (!(await ctx.settings.get<boolean>("telegramEnabled"))) return;
-        const token = await ctx.settings.get<string>("telegramBotToken");
+        const token = await getTelegramToken(ctx);
         const ownerId = String(await ctx.settings.get<string>("telegramOwnerId") ?? "").trim();
         if (!token || !ownerId) return;
         if (!(await registerTelegramWebhook(ctx, token))) return;
@@ -237,6 +255,28 @@ interface TelegramCommentMapping {
   collection: string;
   contentId: string;
   slug: string;
+}
+
+async function getTelegramToken(ctx: PluginContext): Promise<string | null> {
+  const value = await ctx.settings.get<unknown>("telegramBotToken");
+  if (typeof value === "string") return value;
+  if (isEncryptedPluginSetting(value)) return decryptPluginSetting("dmesg-theme", "telegramBotToken", value);
+  return null;
+}
+
+async function readTelegramSettings(ctx: PluginContext) {
+  const [enabled, channelId, ownerId, token] = await Promise.all([
+    ctx.settings.get<boolean>("telegramEnabled"),
+    ctx.settings.get<string>("telegramChannelId"),
+    ctx.settings.get<string>("telegramOwnerId"),
+    ctx.settings.get<unknown>("telegramBotToken"),
+  ]);
+  return {
+    enabled: enabled === true,
+    channelId: typeof channelId === "string" ? channelId : "",
+    ownerId: typeof ownerId === "string" ? ownerId : "",
+    tokenConfigured: typeof token === "string" || isEncryptedPluginSetting(token),
+  };
 }
 
 interface TelegramUpdate {

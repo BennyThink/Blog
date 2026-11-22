@@ -35,15 +35,9 @@ export const settingsSchema: Record<string, SettingField> = {
   requireChinese: { type: "boolean", label: "评论须含汉字并过滤日文", default: false },
   blockedKeywords: { type: "string", label: "评论关键词黑名单（每行一项）", multiline: true },
   blockedEmails: { type: "string", label: "评论邮箱黑名单（每行一项）", multiline: true },
-  blockedIpHashes: { type: "string", label: "评论 IP 哈希黑名单（每行一项；原始 IP 用服务端环境变量）", multiline: true },
-  blockLinks: { type: "boolean", label: "禁止昵称及评论含链接", default: false },
   maxLinkLength: { type: "number", label: "评论内链接最大长度（0 不限制）", default: 0, min: 0 },
   mixedAvatars: { type: "boolean", label: "启用混合评论头像（关闭后使用默认头像）", default: true },
   qqAvatars: { type: "boolean", label: "优先使用 QQ 邮箱头像", default: true },
-  telegramEnabled: { type: "boolean", label: "启用 Telegram 文章与评论通知", default: false },
-  telegramBotToken: { type: "secret", label: "Telegram Bot Token" },
-  telegramChannelId: { type: "string", label: "Telegram 频道 ID" },
-  telegramOwnerId: { type: "string", label: "Telegram Owner ID" },
 	proxyUrl: { type: "url", label: "WebP Cloud Services Proxy URL（留空关闭）" },
 };
 
