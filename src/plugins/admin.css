@@ -71,12 +71,27 @@
 
 .theme-settings__save {
   justify-self: start;
-  background: var(--color-kumo-brand, Highlight);
-  color: var(--color-kumo-brand-on, HighlightText);
+  padding: .5rem .875rem;
+  border-color: var(--color-kumo-line, GrayText);
+  background: var(--color-kumo-control, Field);
+  color: inherit;
   font-weight: 600;
+}
+
+.theme-settings__save:not(:disabled):hover {
+  background: color-mix(in srgb, var(--color-kumo-control, Field), currentColor 8%);
+}
+
+.theme-settings__save:disabled {
+  cursor: wait;
+  opacity: .65;
 }
 
 .theme-settings :focus-visible {
   outline: 2px solid var(--color-kumo-focus, Highlight);
   outline-offset: 2px;
+}
+
+.theme-settings__save:focus-visible {
+  outline-color: currentColor;
 }
