@@ -7,6 +7,7 @@ import {
 	getTaxonomyTermsWithCacheHint,
 } from "emdash";
 import { PortableText } from "emdash/ui";
+import CategoryArchive from "../components/CategoryArchive.astro";
 import Guestbook from "../components/Guestbook.astro";
 import HighlightedCode from "../components/HighlightedCode.astro";
 import Base from "../layouts/Base.astro";
@@ -23,47 +24,50 @@ if (!slug) {
 const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
+let category;
 if (!page) {
 	const categories = await getTaxonomyTermsWithCacheHint("category", { includeCounts: false });
 	if (Astro.cache?.enabled) Astro.cache.set(categories.cacheHint);
-	const category = categories.data.find(term => term.slug === slug);
-	if (category) {
-		return Astro.rewrite(`/category/${encodeURIComponent(category.slug)}${Astro.url.search}`);
-	}
-	return Astro.rewrite("/404");
+	category = categories.data.find(term => term.slug === slug);
+	if (!category) return Astro.rewrite("/404");
 }
 
-const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
-const seo = getSeoMeta(page, {
-	siteTitle,
-	siteUrl: Astro.url.origin,
-	path: Astro.url.pathname.replace(/\/$/, ""),
-});
+const seo = page
+	? getSeoMeta(page, {
+		siteTitle: resolveBlogSiteIdentity(await getSiteSettings()).siteTitle,
+		siteUrl: Astro.url.origin,
+		path: Astro.url.pathname.replace(/\/$/, ""),
+	})
+	: undefined;
 ---
 
-<Base
-	title={seo.title}
-	pageTitle={seo.ogTitle}
-	description={seo.description}
-	canonical={seo.canonical}
-	robots={seo.robots}
-	content={{ collection: "pages", id: page.data.id, slug }}
->
-	<article class="band section article-detail">
-		<div class="frame">
-			<div class="article-paper">
-				<header class="article-heading">
-					<h1 {...page.edit.title}>{page.data.title}</h1>
-				</header>
-				<div class="article-reading">
-					<div class="prose" {...page.edit.content}>
-						<PortableText value={page.data.content} components={{ type: { code: HighlightedCode, image: ProxyPortableImage } }} />
+{category ? (
+	<CategoryArchive term={category} />
+) : page && seo && (
+	<Base
+		title={seo.title}
+		pageTitle={seo.ogTitle}
+		description={seo.description}
+		canonical={seo.canonical}
+		robots={seo.robots}
+		content={{ collection: "pages", id: page.data.id, slug }}
+	>
+		<article class="band section article-detail">
+			<div class="frame">
+				<div class="article-paper">
+					<header class="article-heading">
+						<h1 {...page.edit.title}>{page.data.title}</h1>
+					</header>
+					<div class="article-reading">
+						<div class="prose" {...page.edit.content}>
+							<PortableText value={page.data.content} components={{ type: { code: HighlightedCode, image: ProxyPortableImage } }} />
+						</div>
+						{slug === "message" && page.data.status === "published" && (
+							<Guestbook contentId={page.data.id} publishedAt={page.data.publishedAt} />
+						)}
 					</div>
-					{slug === "message" && page.data.status === "published" && (
-						<Guestbook contentId={page.data.id} publishedAt={page.data.publishedAt} />
-					)}
 				</div>
 			</div>
-		</div>
-	</article>
-</Base>
+		</article>
+	</Base>
+)}

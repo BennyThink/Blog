@@ -1,0 +1,66 @@
+---
+import { getEmDashCollection } from "emdash";
+import Base from "../layouts/Base.astro";
+import ThemePostList from "./ThemePostList.astro";
+
+interface Props {
+	term: { slug: string; label: string; description?: string | null };
+}
+
+const { term } = Astro.props;
+const basePath = `/${encodeURIComponent(term.slug)}`;
+
+const result = await getEmDashCollection("posts", {
+	where: { category: term.slug },
+	orderBy: { published_at: "desc" },
+	limit: 1000,
+});
+if (Astro.cache?.enabled) Astro.cache.set(result.cacheHint);
+const pageSize = 10;
+const requestedPage = Number(Astro.url.searchParams.get("page") ?? 1);
+const pageCount = Math.max(1, Math.ceil(result.entries.length / pageSize));
+const currentPage = Number.isSafeInteger(requestedPage)
+	? Math.min(pageCount, Math.max(1, requestedPage))
+	: 1;
+const posts = result.entries.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+const pageHref = (page: number) => page === 1 ? basePath : `${basePath}?page=${page}`;
+const pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1)
+	.filter(page => page === 1 || page === pageCount || (currentPage <= 3 ? page <= 5 : page >= currentPage - 2 && page <= currentPage));
+const paginationItems = pageNumbers.flatMap((page, index) => [
+	...(index > 0 && page - pageNumbers[index - 1] > 1 ? [{ ellipsis: true as const }] : []),
+	{ ellipsis: false as const, page },
+]);
+---
+<Base title={`${term.label} posts`} description={`All posts in ${term.label}`}>
+	<header class="band intro category-intro">
+		<div class="frame archive-intro">
+			<div class="archive-intro__text">
+				<h1 class="intro__title">{term.label}</h1>
+				<p class="intro__lead">{term.description || `Posts filed under ${term.label}, newest first.`}</p>
+			</div>
+		</div>
+	</header>
+	<ThemePostList posts={posts}>
+		<p slot="empty" class="empty-state">这个分类暂无文章。</p>
+		{pageCount > 1 && <nav slot="pagination" class="home-pagination" aria-label="分类文章分页">
+			{currentPage > 1 && <a class="home-pagination__prev" href={pageHref(currentPage - 1)}>上一页</a>}
+			{paginationItems.map(item => item.ellipsis
+				? <span class="home-pagination__ellipsis" aria-hidden="true">…</span>
+				: item.page === currentPage
+					? <span aria-current="page">{item.page}</span>
+					: <a href={pageHref(item.page)}>{item.page}</a>)}
+			{currentPage < pageCount && <a class="home-pagination__next" href={pageHref(currentPage + 1)}>下一页</a>}
+		</nav>}
+	</ThemePostList>
+</Base>
+
+<style>
+	.category-intro + :global(.theme-home) {
+		border-top: 0;
+	}
+
+	.category-intro + :global(.theme-home::before),
+	.category-intro + :global(.theme-home::after) {
+		content: none;
+	}
+</style>
