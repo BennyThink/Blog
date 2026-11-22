@@ -2,6 +2,8 @@ import { defineMiddleware } from "astro:middleware";
 import { getRequestContext } from "emdash";
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  const startedAt = Date.now();
+  let response: Response | undefined;
   if (context.request.method === "POST" && /^\/_emdash\/api\/comments\/[^/]+\/[^/]+\/?$/.test(context.url.pathname)) {
     const requestContext = getRequestContext();
     if (requestContext) {
@@ -15,8 +17,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
       // Use the adapter's peer address; do not trust caller-supplied forwarding headers.
       let address = "";
       try { address = context.clientAddress.replace(/^::ffff:/, ""); } catch { /* Adapter has no peer address. */ }
-      if (blocked.includes(address)) return Response.json({ success: false, error: { code: "COMMENT_REJECTED", message: "评论不符合本站规则。" } }, { status: 403 });
+      if (blocked.includes(address)) response = Response.json({ success: false, error: { code: "COMMENT_REJECTED", message: "评论不符合本站规则。" } }, { status: 403 });
     }
   }
-  return next();
+  response ??= await next();
+  const cfIp = context.request.headers.get("cf-connecting-ip")?.trim();
+  const clientIp = cfIp && /^[\da-fA-F.:]+$/.test(cfIp) ? cfIp.replace(/^::ffff:/, "") : "unknown";
+  console.log(JSON.stringify({
+    type: "http_access",
+    timestamp: new Date().toISOString(),
+    clientIp,
+    method: context.request.method,
+    path: context.url.pathname,
+    status: response.status,
+    durationMs: Date.now() - startedAt,
+  }));
+  return response;
 });
