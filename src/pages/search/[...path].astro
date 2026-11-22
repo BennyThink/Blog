@@ -1,8 +1,9 @@
 ---
-import { getEmDashCollection, search, SearchUnavailableError } from "emdash";
+import { getEmDashCollection } from "emdash";
 import ThemePostList from "../../components/ThemePostList.astro";
 import Base from "../../layouts/Base.astro";
 import { getThemeSettings } from "../../theme/settings";
+import { searchPostIds } from "../../utils/search-posts";
 
 export const prerender = false;
 
@@ -28,8 +29,7 @@ const requestedPage = isPaginated ? pageSegment : encodedQuery ? "1" : Astro.url
 if (!/^[1-9]\d*$/.test(requestedPage)) return Astro.rewrite("/404");
 const currentPage = Number(requestedPage);
 const perPage = 10;
-const windowSize = (currentPage + 2) * perPage;
-if (!Number.isSafeInteger(windowSize + 1) || (!query && (isPaginated || currentPage > 1))) {
+if (!Number.isSafeInteger(currentPage * perPage) || (!query && (isPaginated || currentPage > 1))) {
   return Astro.rewrite("/404");
 }
 function pageHref(page: number) {
@@ -44,20 +44,11 @@ if (query && (queryInPath
   return Astro.redirect(pageHref(currentPage), 301);
 }
 
-let searchUnavailable = false;
-const matches = query
-  ? await search(query, { collections: ["posts"], limit: windowSize }).catch(error => {
-      if (!(error instanceof SearchUnavailableError)) throw error;
-      searchUnavailable = true;
-      return { items: [], nextCursor: undefined };
-    })
-  : { items: [], nextCursor: undefined };
-
-const pageMatches = matches.items.slice((currentPage - 1) * perPage, currentPage * perPage);
-if (currentPage > 1 && !searchUnavailable && pageMatches.length === 0) return Astro.rewrite("/404");
-
-const ids = pageMatches.map(match => match.id);
+const matches = await searchPostIds(query);
+const ids = matches.slice((currentPage - 1) * perPage, currentPage * perPage);
+if (currentPage > 1 && ids.length === 0) return Astro.rewrite("/404");
 const result = ids.length > 0 ? await getEmDashCollection("posts", {
+  status: "published",
   limit: perPage,
   where: { id: ids },
 }) : undefined;
@@ -73,7 +64,8 @@ const posts = ids.flatMap(id => {
   return post ? [post] : [];
 });
 
-const lastVisiblePage = Math.ceil(matches.items.length / perPage);
+const pageCount = Math.ceil(matches.length / perPage);
+const lastVisiblePage = Math.min(pageCount, currentPage + 2);
 const firstNearbyPage = Math.max(1, currentPage - 2);
 const nearbyPages = Array.from(
   { length: Math.max(0, lastVisiblePage - firstNearbyPage + 1) },
@@ -93,7 +85,7 @@ const theme = query ? undefined : await getThemeSettings(Astro.locals, Astro.req
     </header>
 
     {query && <p slot="empty" class="empty-state">
-      {searchUnavailable ? "搜索暂时无法使用，请稍后重试。" : "没有找到相关文章。"}
+      没有找到相关文章。
     </p>}
 
     {lastVisiblePage > 1 && <nav slot="pagination" class="home-pagination" aria-label="搜索结果分页">
@@ -103,7 +95,7 @@ const theme = query ? undefined : await getThemeSettings(Astro.locals, Astro.req
       {nearbyPages.map(page => page === currentPage
         ? <span aria-current="page">{page}</span>
         : <a href={pageHref(page)}>{page}</a>)}
-      {matches.nextCursor && <span class="home-pagination__ellipsis" aria-hidden="true">…</span>}
+      {lastVisiblePage < pageCount && <span class="home-pagination__ellipsis" aria-hidden="true">…</span>}
       {currentPage < lastVisiblePage && <a class="home-pagination__next" href={pageHref(currentPage + 1)}>下一页</a>}
     </nav>}
   </ThemePostList>
