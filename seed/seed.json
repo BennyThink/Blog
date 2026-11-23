@@ -141,11 +141,6 @@
 				},
 				{
 					"type": "custom",
-					"label": "About",
-					"url": "/about"
-				},
-				{
-					"type": "custom",
 					"label": "Posts",
 					"url": "/posts"
 				}
@@ -277,42 +272,7 @@
 		}
 	],
 	"content": {
-		"pages": [
-			{
-				"id": "about",
-				"slug": "about",
-				"status": "published",
-				"data": {
-					"title": "About",
-					"content": [
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "A place for writing about software, design, and the occasional stray thought. No posting schedule, no newsletter funnel. Just things I wanted to write down.",
-									"_key": "k1"
-								}
-							],
-							"_key": "k0"
-						},
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [
-								{
-									"_type": "span",
-									"text": "Built with Astro and EmDash. The source is open if you want to see how it works.",
-									"_key": "k3"
-								}
-							],
-							"_key": "k2"
-						}
-					]
-				}
-			}
-		],
+		"pages": [],
 		"posts": [
 			{
 				"id": "post-1",

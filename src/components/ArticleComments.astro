@@ -1,5 +1,7 @@
 ---
-import { CommentForm, Comments } from "emdash/ui/comments";
+import { CommentForm } from "emdash/ui/comments";
+
+import CommentThreads from "./CommentThreads.astro";
 
 interface Props {
 	collection: "posts" | "pages";
@@ -20,9 +22,8 @@ const labels = isGuestbook
 	{open && <CommentForm collection={collection} contentId={contentId} labels={{
 		name: "昵称", email: "邮箱", submitting: "正在提交…", networkError: "网络错误，请稍后重试。", ...labels
 	}} />}
-	<slot>
-		<Comments collection={collection} contentId={contentId} threaded locale="zh-CN" labels={{ heading: count => `${count} 条评论`, member: "站长" }} />
-	</slot>
+	{!open && <p>{isGuestbook ? "留言已关闭。" : "评论已关闭。"}</p>}
+	<CommentThreads collection={collection} contentId={contentId} />
 </section>
 
 <script>

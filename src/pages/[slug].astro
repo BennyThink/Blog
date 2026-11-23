@@ -19,7 +19,7 @@ import "../styles/prose.css";
 
 const slug = decodeSlug(Astro.params.slug);
 
-if (!slug) {
+if (!slug || slug === "about") {
 	return Astro.rewrite("/404");
 }
 

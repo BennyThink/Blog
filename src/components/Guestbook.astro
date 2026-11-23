@@ -1,8 +1,6 @@
 ---
-import { getCollectionInfo, getCommentCount } from "emdash";
-import { getDb } from "emdash/runtime";
+import { getCollectionInfo } from "emdash";
 import ArticleComments from "./ArticleComments.astro";
-import GuestbookComment from "./GuestbookComment.astro";
 
 interface Props {
 	contentId: string;
@@ -10,75 +8,12 @@ interface Props {
 }
 
 const { contentId, publishedAt } = Astro.props;
-const db = await getDb();
-const approved = db.selectFrom("_emdash_comments")
-	.where("collection", "=", "pages")
-	.where("content_id", "=", contentId)
-	.where("status", "=", "approved");
-const roots = approved.where("parent_id", "is", null);
-const [settings, total, rootCount] = await Promise.all([
-	getCollectionInfo("pages"),
-	getCommentCount("pages", contentId),
-	roots.select(({ fn }) => fn.countAll().as("count")).executeTakeFirstOrThrow(),
-]);
-
+const settings = await getCollectionInfo("pages");
 const days = settings?.commentsClosedAfterDays ?? 0;
 const closesAt = publishedAt && new Date(publishedAt);
 if (closesAt && days > 0) closesAt.setDate(closesAt.getDate() + days);
 const open = Boolean(settings?.commentsEnabled && (!closesAt || days === 0 || new Date() <= closesAt));
 
-const pageSize = 30;
-const lastPage = Math.max(1, Math.ceil(Number(rootCount.count) / pageSize));
-const requestedPage = Number(Astro.url.searchParams.get("comment-page") ?? "1");
-const page = Number.isSafeInteger(requestedPage) ? Math.min(Math.max(requestedPage, 1), lastPage) : 1;
-const pageHref = (number: number) => `${Astro.url.pathname}${number === 1 ? "" : `?comment-page=${number}`}#comments`;
-
-const publicFields = ["id", "parent_id", "author_name", "author_user_id", "body", "created_at"] as const;
-const comments = await roots.select(publicFields)
-	.orderBy("created_at", "desc").orderBy("id", "desc")
-	.limit(pageSize).offset((page - 1) * pageSize).execute();
-const replies = comments.length ? await approved.select(publicFields)
-	.where("parent_id", "in", comments.map(comment => comment.id))
-	.orderBy("created_at", "asc").orderBy("id", "asc").execute() : [];
-const repliesByParent = Map.groupBy(replies, reply => reply.parent_id);
 ---
 
-<ArticleComments collection="pages" contentId={contentId} open={open}>
-	{!open && <p>留言已关闭。</p>}
-	<h3 class="ec-comments-heading">{total ? `${total} 条留言` : "暂无留言"}</h3>
-	{comments.length > 0 && (
-		<ol class="ec-comments-list">
-			{comments.map(comment => {
-				const threadReplies = repliesByParent.get(comment.id);
-				return <li>
-					<GuestbookComment comment={comment}>
-						{threadReplies && (
-							<ol class="ec-comment-replies">
-								{threadReplies.map(reply => (
-									<li><GuestbookComment comment={reply} /></li>
-								))}
-							</ol>
-						)}
-					</GuestbookComment>
-				</li>;
-			})}
-		</ol>
-	)}
-	{lastPage > 1 && (
-		<nav class="guestbook-pagination" aria-label="留言分页">
-			{page > 1 && <a href={pageHref(page - 1)}>较新留言</a>}
-			<span aria-current="page">第 {page} / {lastPage} 页</span>
-			{page < lastPage && <a href={pageHref(page + 1)}>较早留言</a>}
-		</nav>
-	)}
-</ArticleComments>
-
-<style>
-	.guestbook-pagination {
-		display: flex;
-		justify-content: center;
-		flex-wrap: wrap;
-		gap: var(--spacing-4);
-		margin-block: var(--spacing-6);
-	}
-</style>
+<ArticleComments collection="pages" contentId={contentId} open={open} />

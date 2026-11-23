@@ -2,7 +2,15 @@
 interface Item { id: string; label: string; url: string; target?: string; children?: Item[]; }
 interface Props { items: Item[]; currentPath: string; }
 const { items, currentPath } = Astro.props;
-const labels: Record<string, string> = { Home: "首页", About: "关于", Posts: "文章" };
+const labels: Record<string, string> = { Home: "首页", Posts: "文章" };
+function isRemovedPage(url: string) {
+  try {
+    const target = new URL(url, Astro.url);
+    return target.origin === Astro.url.origin && /^\/(?:pages\/)?about\/?$/.test(target.pathname);
+  } catch {
+    return false;
+  }
+}
 function current(url: string) {
   try { const u = new URL(url, Astro.url); return u.origin === Astro.url.origin && u.pathname.replace(/\/$/, "") === currentPath.replace(/\/$/, "") && !u.hash && (!u.search || u.search === Astro.url.search) ? "page" as const : undefined; }
   catch { return undefined; }
@@ -12,7 +20,7 @@ function safeUrl(url: string) {
   catch { return "#"; }
 }
 ---
-{items.map(item => <li class="theme-menu-item">
+{items.filter(item => !isRemovedPage(item.url)).map(item => <li class="theme-menu-item">
   {item.children?.length ? <details class="theme-submenu">
     <summary>{labels[item.label] ?? item.label}</summary>
     <ul><li><a href={safeUrl(item.url)}>{labels[item.label] ?? item.label}</a></li><Astro.self items={item.children} currentPath={currentPath} /></ul>
