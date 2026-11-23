@@ -1,11 +1,36 @@
+import type { APIContext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 import { getRequestContext } from "emdash";
-import { invalidatePageCache, serveCachedPage } from "./theme/page-cache";
+import { invalidateCachedPosts, invalidatePageCache, serveCachedPage } from "./theme/page-cache";
 import { isPageCacheSize, maxPageCacheMiB } from "./theme/settings";
 import { getPostViewsVersion, recordPostView } from "./utils/post-views";
 
-const cacheMutationPath = /^\/_emdash\/api\/(?:content|revisions|visual-editing|admin|import|menus|settings|site|taxonomies|widget-areas|comments)(?:[/.]|$)/;
+const publicPostComments = /^\/_emdash\/api\/comments\/posts\/([\w-]+)\/?$/;
+const adminComments = /^\/_emdash\/api\/admin\/comments(?:\/|$)/;
+const adminCommentItem = /^\/_emdash\/api\/admin\/comments\/([\w-]+)(?:\/status)?\/?$/;
+const adminCommentBulk = /^\/_emdash\/api\/admin\/comments\/bulk\/?$/;
+const cacheMutationPath = /^\/_emdash\/api\/(?:content|revisions|visual-editing|admin|import|menus|settings|site|taxonomies|widget-areas)(?:[/.]|$)/;
 const themeSettingsPath = /^\/_emdash\/api\/admin\/plugins\/dmesg-theme\/settings\/?$/;
+
+async function getAffectedPosts({ request, url, locals }: APIContext): Promise<string[]> {
+  if (!locals.user || !locals.emdash?.db) return [];
+  const item = adminCommentItem.exec(url.pathname);
+  let ids: string[] = [];
+  if (request.method === "POST" && adminCommentBulk.test(url.pathname)) {
+    const body = await request.clone().json().catch(() => null);
+    if (Array.isArray(body?.ids) && body.ids.length <= 100) {
+      ids = body.ids.filter((id: unknown): id is string => typeof id === "string");
+    }
+  } else if (item && /^(PUT|PATCH|DELETE)$/.test(request.method)) {
+    ids = [item[1]];
+  }
+  if (!ids.length) return [];
+
+  const rows = await locals.emdash.db.selectFrom("_emdash_comments")
+    .select("content_id").distinct().where("collection", "=", "posts")
+    .where("id", "in", ids).execute();
+  return rows.map(row => row.content_id);
+}
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const startedAt = Date.now();
@@ -37,9 +62,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
       }, { status: 400 });
     }
   }
+  const commentAdminRequest = adminComments.test(url.pathname);
+  const affectedPosts = commentAdminRequest
+    ? await getAffectedPosts(context).catch((error) => {
+      console.error("Could not resolve posts for comment cache invalidation", error);
+      return [];
+    })
+    : [];
   response ??= await serveCachedPage(context, next, { record: recordPostView, version: getPostViewsVersion });
-  if (response.ok && /^(POST|PUT|PATCH|DELETE)$/.test(request.method) && cacheMutationPath.test(url.pathname)) {
-    invalidatePageCache();
+  if (response.ok && /^(POST|PUT|PATCH|DELETE)$/.test(request.method)) {
+    const commentPost = request.method === "POST" && publicPostComments.exec(url.pathname);
+    if (commentPost) invalidateCachedPosts([commentPost[1]]);
+    else if (commentAdminRequest) invalidateCachedPosts(affectedPosts);
+    else if (cacheMutationPath.test(url.pathname)) invalidatePageCache();
   }
   const cfIp = context.request.headers.get("cf-connecting-ip")?.trim();
   const clientIp = cfIp && /^[\da-fA-F.:]+$/.test(cfIp) ? cfIp.replace(/^::ffff:/, "") : "unknown";

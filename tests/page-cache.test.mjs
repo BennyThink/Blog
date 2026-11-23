@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createPlugin } from "../src/plugins/dmesg-theme.ts";
-import { getPageCacheStats, invalidatePageCache, registerCachedPostView, serveCachedPage } from "../src/theme/page-cache.ts";
+import { getPageCacheStats, invalidateCachedPosts, invalidatePageCache, registerCachedPost, serveCachedPage } from "../src/theme/page-cache.ts";
 
 const home = "/";
 const post = "/article.html";
@@ -16,7 +16,10 @@ function client({ settings = {}, views = { record() {}, version: () => 0 } } = {
       url, request,
       routePattern: url.pathname.endsWith(".html") ? "/[slug].html" : "/",
       locals: { emdash: { handlePublicPluginApiRoute: async () => ({ success: true, data: settings }) } },
-      cookies: { *headers() {} },
+      cookies: {
+        has: (name) => request.headers.get("cookie")?.split(";").some(cookie => cookie.trim().startsWith(name + "=")) ?? false,
+        *headers() {},
+      },
     }, () => render(request), views);
   };
 }
@@ -29,7 +32,10 @@ test("home expires after three minutes and personalized requests bypass the cach
   assert.equal(status(await get(home)), "MISS");
   now += 179_999;
   assert.equal(status(await get(home)), "HIT");
-  assert.equal(status(await get(home, undefined, { headers: { Cookie: "session=test" } })), "BYPASS");
+  assert.equal(status(await get(home, undefined, { headers: { Cookie: "_ga=test; _ga_ABC123=test" } })), "HIT");
+  assert.equal(status(await get(home, undefined, { headers: { Cookie: "_ga=test; unrelated=test" } })), "HIT");
+  assert.equal(status(await get(home, undefined, { headers: { Cookie: "other=test; astro-session=test" } })), "BYPASS");
+  assert.equal(status(await get(home, undefined, { headers: { Cookie: "emdash-edit-mode=true" } })), "BYPASS");
   now += 1;
   assert.equal(status(await get(home)), "MISS");
 });
@@ -59,7 +65,7 @@ test("a post hit records a view, and a counter flush refreshes article HTML only
   const get = client({ views: { record: id => recorded.push(id), version: () => version } });
   await get(home);
   const render = (request) => {
-    registerCachedPostView(request, "post-id");
+    registerCachedPost(request, "post-id", true);
     return html();
   };
   assert.equal(status(await get(post, render)), "MISS");
@@ -89,4 +95,24 @@ test("the shared byte budget evicts the least recently used page", async () => {
 
   invalidatePageCache();
   assert.deepEqual(getPageCacheStats(true, 1), { ...filled, retainedBytes: 0, homeEntries: 0 });
+});
+
+
+test("invalidating a comment's post preserves the homepage and other articles", async () => {
+  invalidatePageCache();
+  const get = client();
+  const otherPost = "/other.html";
+  const renderPost = (id) => (request) => {
+    registerCachedPost(request, id, false);
+    return html();
+  };
+
+  await get(home);
+  await get(post, renderPost("article"));
+  await get(otherPost, renderPost("other"));
+  invalidateCachedPosts(["article"]);
+
+  assert.equal(status(await get(home)), "HIT");
+  assert.equal(status(await get(otherPost)), "HIT");
+  assert.equal(status(await get(post, renderPost("article"))), "MISS");
 });

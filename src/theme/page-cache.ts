@@ -11,12 +11,13 @@ interface CachedPage {
   headers: Headers;
   expiresAt: number;
   postId?: string;
+  countView?: boolean;
   viewsVersion: number;
   home: boolean;
 }
 
 const pages = new Map<string, CachedPage>();
-const postViews = new WeakMap<Request, string>();
+const renderedPosts = new WeakMap<Request, { postId: string; countView: boolean }>();
 let retainedBytes = 0;
 let generation = 0;
 const requests = { HIT: 0, MISS: 0, BYPASS: 0 };
@@ -48,8 +49,18 @@ export function invalidatePageCache() {
   retainedBytes = 0;
 }
 
-export function registerCachedPostView(request: Request, postId: string) {
-  postViews.set(request, postId);
+export function invalidateCachedPosts(postIds: readonly string[]) {
+  if (!postIds.length) return;
+  // A render may not have resolved its post ID yet. Forbid in-flight cache writes.
+  generation++;
+  const affected = new Set(postIds);
+  for (const [key, page] of pages) {
+    if (page.postId && affected.has(page.postId)) removePage(key, page);
+  }
+}
+
+export function registerCachedPost(request: Request, postId: string, countView: boolean) {
+  renderedPosts.set(request, { postId, countView });
 }
 
 function removePage(key: string, page: CachedPage) {
@@ -74,8 +85,10 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
   if (!home && !post) return next();
 
   const scope = getRequestContext();
+  // This site uses Astro's default session cookie name.
+  const hasSessionCookie = context.cookies.has("astro-session") || context.cookies.has("emdash-edit-mode");
   if (!locals.emdash || locals.user || scope?.preview || scope?.editMode || scope?.dbIsIsolated
-    || request.method !== "GET" || url.search || request.headers.has("cookie")
+    || request.method !== "GET" || url.search || hasSessionCookie
     || request.headers.has("origin") || request.headers.has("authorization") || request.headers.has("range")
     || request.headers.has("if-none-match") || request.headers.has("if-modified-since")) {
     return withCacheHeader(await next(), "BYPASS");
@@ -89,7 +102,7 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
     if (page.expiresAt > Date.now() && page.viewsVersion === viewsVersion) {
       pages.set(key, page);
       retainedBytes += page.body.byteLength;
-      if (page.postId) views.record(page.postId);
+      if (page.postId && page.countView) views.record(page.postId);
       return withCacheHeader(new Response(page.body, { headers: page.headers }), "HIT");
     }
   }
@@ -120,7 +133,7 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
     body,
     headers: new Headers(headers),
     expiresAt: Date.now() + (home ? homeTtl : postTtl),
-    postId: postViews.get(request),
+    ...renderedPosts.get(request),
     viewsVersion,
     home,
   });

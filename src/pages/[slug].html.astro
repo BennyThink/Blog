@@ -20,7 +20,7 @@ import { formatDate } from "../utils/locale";
 import { getContentCharacterCount } from "../utils/reading-time";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
 import { resolveSiteOrigin } from "../utils/site-origin";
-import { registerCachedPostView } from "../theme/page-cache";
+import { registerCachedPost } from "../theme/page-cache";
 import { recordPostView } from "../utils/post-views";
 import { postPath } from "../utils/post-url";
 import { proxyImage, proxyMediaUrl } from "../utils/media-proxy";
@@ -42,11 +42,10 @@ if (!post) {
 }
 
 const requestContext = getRequestContext();
-if (!requestContext?.dbIsIsolated && Object.hasOwn(post.data, "views") && Astro.request.method === "GET"
-	&& post.data.status === "published" && !requestContext?.preview && !requestContext?.editMode) {
-	recordPostView(post.data.id);
-	registerCachedPostView(Astro.request, post.data.id);
-}
+const countView = !requestContext?.dbIsIsolated && Object.hasOwn(post.data, "views") && Astro.request.method === "GET"
+	&& post.data.status === "published" && !requestContext?.preview && !requestContext?.editMode;
+if (countView) recordPostView(post.data.id);
+registerCachedPost(Astro.request, post.data.id, countView);
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 

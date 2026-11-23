@@ -1,4 +1,4 @@
-import { getPageCacheStats, invalidatePageCache } from "../theme/page-cache.ts";
+import { getPageCacheStats, invalidateCachedPosts, invalidatePageCache } from "../theme/page-cache.ts";
 import { definePlugin } from "emdash";
 import type { PluginAdminConfig, PluginContext } from "emdash";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
@@ -248,7 +248,11 @@ export function createPlugin() {
           await telegramApi(ctx, token, "sendMessage", { chat_id: chatId, text: `新的博文《${data.title ?? ""}》发布了\n${url}` });
         } catch { ctx.log.error("Telegram 文章通知发送失败。", { contentId: id }); }
       } },
+      "comment:afterModerate": async ({ comment }) => {
+        if (comment.collection === "posts") invalidateCachedPosts([comment.contentId]);
+      },
       "comment:afterCreate": async (event, ctx) => {
+        if (event.content.collection === "posts") invalidateCachedPosts([event.content.id]);
         if (event.comment.status === "spam" || /^telegram-owner@/i.test(event.comment.authorEmail)) return;
         if (!(await ctx.settings.get<boolean>("telegramEnabled"))) return;
         const token = await getTelegramToken(ctx);
