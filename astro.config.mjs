@@ -25,8 +25,8 @@ const themePluginCard = {
 	},
 };
 
-const postsPublicationDateColumn = {
-	name: "dmesg-posts-publication-date-column",
+const postsDateColumns = {
+	name: "dmesg-posts-date-columns-and-sort",
 	enforce: "pre",
 	transform(code, id) {
 		if (!id.endsWith("/@emdash-cms/admin/dist/index.js")) return;
@@ -36,12 +36,19 @@ const postsPublicationDateColumn = {
 		const colSpan = "const colSpan = (i18n$10 ? 5 : 4) + listColumns.length + extensionColumns.length + (bulkEnabled ? 1 : 0)";
 		const edits = [
 			{
+				before: 'field: manifest?.collections[collection]?.dateField ?? "updatedAt",',
+				after: 'field: collection === "posts" ? "publishedAt" : (manifest?.collections[collection]?.dateField ?? "updatedAt"),',
+			},
+			{
 				before: `${colSpan};`,
 				after: `${colSpan} + (collection === "posts" ? 1 : 0);`,
 			},
 			{
 				before: 'const dateSortField = dateField ?? "updatedAt";\n\tconst sortFields = [',
 				after: `const dateSortField = dateField ?? "updatedAt";
+	const dateColumnLabel = collection === "posts" && dateSortField === "updatedAt"
+		? lingui.locale.startsWith("zh") ? "更新日期" : "Updated date"
+		: _t({ id: "mYGY3B", message: "Date" });
 	const sortFields = [
 		...(collection === "posts" && dateSortField !== "publishedAt"
 			? [{ field: "publishedAt", label: ${publicationLabel} }]
@@ -78,6 +85,12 @@ const postsPublicationDateColumn = {
 			}
 			code = code.replace(before, () => after);
 		}
+		// Match the existing date label in both the table header and sort menu.
+		const dateColumnLabels = /(field: dateSortField,\s+(?:sort,\s+onSortChange,\s+)?label: )_t\(\{\s+id: "mYGY3B",\s+message: "Date"\s+\}\)/g;
+		if ([...code.matchAll(dateColumnLabels)].length !== 2) {
+			this.error("The EmDash content list changed. Review the Posts date column label.");
+		}
+		code = code.replace(dateColumnLabels, "$1dateColumnLabel");
 		return { code, map: null };
 	},
 };
@@ -96,9 +109,9 @@ export default defineConfig({
 		responsiveStyles: true,
 	},
 	vite: {
-		plugins: [themePluginCard, postsPublicationDateColumn],
+		plugins: [themePluginCard, postsDateColumns],
 		optimizeDeps: {
-			rolldownOptions: { plugins: [themePluginCard, postsPublicationDateColumn] },
+			rolldownOptions: { plugins: [themePluginCard, postsDateColumns] },
 		},
 		css: {
 			// Keep light-dark() native so the footer theme switcher works in
