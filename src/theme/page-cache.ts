@@ -3,8 +3,6 @@ import { getRequestContext } from "emdash";
 import { isPrewarmRequest } from "./page-prewarm.ts";
 import { getThemeSettings, isPageCacheSize, publicDefaults } from "./settings.ts";
 
-const homeTtl = 3 * 60_000;
-const postTtl = 5 * 60_000;
 const cacheHeader = "X-Emdash-Cache";
 
 interface CachedPage {
@@ -13,7 +11,6 @@ interface CachedPage {
   expiresAt: number;
   postId?: string;
   countView?: boolean;
-  viewsVersion: number;
   home: boolean;
 }
 
@@ -76,10 +73,7 @@ function withCacheHeader(response: Response, status: keyof typeof requests, prew
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-export async function serveCachedPage(context: APIContext, next: () => Promise<Response>, views: {
-  record: (id: string) => void;
-  version: () => number;
-}) {
+export async function serveCachedPage(context: APIContext, next: () => Promise<Response>, recordView: (id: string) => void) {
   const { locals, request, url } = context;
   const home = url.pathname === "/";
   const post = context.routePattern === "/[slug].html";
@@ -97,14 +91,13 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
   }
 
   const key = url.origin + url.pathname;
-  const viewsVersion = post ? views.version() : 0;
   const page = pages.get(key);
   if (page) {
     removePage(key, page);
-    if (page.expiresAt > Date.now() && page.viewsVersion === viewsVersion) {
+    if (page.expiresAt > Date.now()) {
       pages.set(key, page);
       retainedBytes += page.body.byteLength;
-      if (!prewarm && page.postId && page.countView) views.record(page.postId);
+      if (!prewarm && page.postId && page.countView) recordView(page.postId);
       return withCacheHeader(new Response(page.body, { headers: page.headers }), "HIT", prewarm);
     }
   }
@@ -134,9 +127,8 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
   pages.set(key, {
     body,
     headers: new Headers(headers),
-    expiresAt: Date.now() + (home ? homeTtl : postTtl),
+    expiresAt: Date.now() + settings.pageCachePostTtlSeconds * 1000,
     ...renderedPosts.get(request),
-    viewsVersion,
     home,
   });
   retainedBytes += body.byteLength;

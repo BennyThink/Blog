@@ -6,13 +6,17 @@ export function isPageCacheSize(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= maxPageCacheMiB;
 }
 
+export function isPostCacheTtl(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
+
 export function isPrewarmTime(value: unknown): value is string {
   return typeof value === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
 export const publicDefaults = {
   proxyUrl: "",
-  pageCacheEnabled: true, pageCacheSizeMiB: 24,
+  pageCacheEnabled: true, pageCacheSizeMiB: 24, pageCachePostTtlSeconds: 3600,
   pageCachePrewarm: "off", pageCachePrewarmTime: "07:00",
   announcements: "", fortunes: true, searchPlaceholder: "搜索文章…",
   commentPlaceholder: "写下你的想法…", keywords: "", description: "",
@@ -25,6 +29,10 @@ export type ThemeSettings = typeof publicDefaults;
 export const settingsSchema: Record<string, SettingField> = {
   pageCacheEnabled: { type: "boolean", label: "启用页面缓存", default: publicDefaults.pageCacheEnabled },
   pageCacheSizeMiB: { type: "number", label: "缓存容量（MiB）", default: publicDefaults.pageCacheSizeMiB, min: 1, max: maxPageCacheMiB },
+  pageCachePostTtlSeconds: {
+    type: "number", label: "页面缓存有效期（秒）", default: publicDefaults.pageCachePostTtlSeconds, min: 1,
+    description: "适用于首页和文章详情页，到期后重新生成。",
+  },
   pageCachePrewarm: { type: "select", label: "自动预缓存", default: publicDefaults.pageCachePrewarm, options: [
     { value: "off", label: "关闭" },
     { value: "startup", label: "网站启动后" },
@@ -71,6 +79,7 @@ export async function readPublicSettings(settings: { get<T>(key: string): Promis
   const entries = await Promise.all(Object.entries(publicDefaults).map(async ([key, fallback]) => {
     const value = await settings.get(key);
     if (key === "pageCacheSizeMiB") return [key, isPageCacheSize(value) ? value : fallback];
+    if (key === "pageCachePostTtlSeconds") return [key, isPostCacheTtl(value) ? value : fallback];
     return [key, typeof value === typeof fallback ? value : fallback];
   }));
   return Object.fromEntries(entries) as ThemeSettings;

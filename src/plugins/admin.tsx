@@ -18,7 +18,7 @@ const tabs = [
   { id: "telegram", label: "Telegram 通知", keys: [
     "telegramEnabled", "telegramBotToken", "telegramChannelId", "telegramOwnerId",
   ] },
-  { id: "cache", label: "页面缓存", keys: ["pageCacheEnabled", "pageCacheSizeMiB", "pageCachePrewarm", "pageCachePrewarmTime"] },
+  { id: "cache", label: "页面缓存", keys: ["pageCacheEnabled", "pageCacheSizeMiB", "pageCachePostTtlSeconds", "pageCachePrewarm", "pageCachePrewarmTime"] },
   { id: "services", label: "代码与服务", keys: ["headCode", "analyticsCode", "footerCode", "proxyUrl"] },
 ];
 
@@ -87,11 +87,13 @@ function SettingsField({ name, field, value, secretSet, onChange }: {
         {field.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>;
       break;
-    case "number":
-      input = <input id={id} type="number" value={text} min={field.min} max={field.max} step={name === "pageCacheSizeMiB" ? 1 : "any"}
-        required={name === "pageCacheSizeMiB"}
+    case "number": {
+      const requiresInteger = name === "pageCacheSizeMiB" || name === "pageCachePostTtlSeconds";
+      input = <input id={id} type="number" value={text} min={field.min} max={field.max} step={requiresInteger ? 1 : "any"}
+        required={requiresInteger}
         onChange={(event) => onChange(event.currentTarget.value === "" ? null : event.currentTarget.valueAsNumber)} />;
       break;
+    }
     default:
       input = name === "pageCachePrewarmTime"
         ? <input id={id} type="time" required value={text} onChange={(event) => onChange(event.currentTarget.value)} />

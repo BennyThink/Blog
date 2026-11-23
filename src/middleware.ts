@@ -2,9 +2,9 @@ import type { APIContext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 import { getRequestContext } from "emdash";
 import { invalidateCachedPosts, invalidatePageCache, serveCachedPage } from "./theme/page-cache";
-import { getThemeSettings, isPageCacheSize, isPrewarmTime, maxPageCacheMiB } from "./theme/settings";
+import { getThemeSettings, isPageCacheSize, isPostCacheTtl, isPrewarmTime, maxPageCacheMiB } from "./theme/settings";
 import { cancelPagePrewarm, getPrewarmPlan, initializePagePrewarm, prewarmPlanPath, refreshPrewarmSchedule } from "./theme/page-prewarm";
-import { getPostViewsVersion, recordPostView } from "./utils/post-views";
+import { recordPostView } from "./utils/post-views";
 
 const publicPostComments = /^\/_emdash\/api\/comments\/posts\/([\w-]+)\/?$/;
 const adminComments = /^\/_emdash\/api\/admin\/comments(?:\/|$)/;
@@ -65,6 +65,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
         error: { code: "INVALID_REQUEST", message: `缓存容量必须是 1 到 ${maxPageCacheMiB} 之间的整数。` },
       }, { status: 400 });
     }
+    const ttl = submitted?.values?.pageCachePostTtlSeconds;
+    if (ttl !== undefined && !isPostCacheTtl(ttl)) {
+      response = Response.json({
+        success: false,
+        error: { code: "INVALID_REQUEST", message: "页面缓存有效期必须为正整数秒。" },
+      }, { status: 400 });
+    }
     const time = submitted?.values?.pageCachePrewarmTime;
     if (time !== undefined && !isPrewarmTime(time)) {
       response = Response.json({
@@ -80,7 +87,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
       return [];
     })
     : [];
-  response ??= await serveCachedPage(context, next, { record: recordPostView, version: getPostViewsVersion });
+  response ??= await serveCachedPage(context, next, recordPostView);
   if (response.ok && /^(POST|PUT|PATCH|DELETE)$/.test(request.method)) {
     const commentPost = request.method === "POST" && publicPostComments.exec(url.pathname);
     if (commentPost) invalidateCachedPosts([commentPost[1]]);

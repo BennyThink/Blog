@@ -5,11 +5,6 @@ const flushInterval = 30_000;
 let pending = new Map<string, number>();
 let timer: NodeJS.Timeout | undefined;
 let db: DatabaseSync | undefined;
-let version = 0;
-
-export function getPostViewsVersion() {
-	return version;
-}
 
 export function recordPostView(postId: string) {
 	pending.set(postId, (pending.get(postId) ?? 0) + 1);
@@ -37,7 +32,6 @@ function flush() {
 		try {
 			for (const [id, increment] of batch) update.run(increment, id);
 			db.exec("COMMIT");
-			version++;
 		} catch (error) {
 			if (db.isTransaction) db.exec("ROLLBACK");
 			throw error;

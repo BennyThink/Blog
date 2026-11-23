@@ -8,7 +8,7 @@ const post = "/article.html";
 const status = (response) => response.headers.get("X-Emdash-Cache");
 const html = (body = "page") => new Response(body, { headers: { "Content-Type": "text/html" } });
 
-function client({ settings = {}, views = { record() {}, version: () => 0 } } = {}) {
+function client({ settings = {}, recordView = () => {} } = {}) {
   return (path, render = () => html(), options) => {
     const url = new URL(path, "https://example.test");
     const request = new Request(url, options);
@@ -20,17 +20,17 @@ function client({ settings = {}, views = { record() {}, version: () => 0 } } = {
         has: (name) => request.headers.get("cookie")?.split(";").some(cookie => cookie.trim().startsWith(name + "=")) ?? false,
         *headers() {},
       },
-    }, () => render(request), views);
+    }, () => render(request), recordView);
   };
 }
 
-test("home expires after three minutes and personalized requests bypass the cached copy", async (t) => {
+test("home uses the configured TTL and personalized requests bypass the cached copy", async (t) => {
   invalidatePageCache();
   t.mock.method(Date, "now", () => now);
   let now = 1_000;
-  const get = client();
+  const get = client({ settings: { pageCachePostTtlSeconds: 60 } });
   assert.equal(status(await get(home)), "MISS");
-  now += 179_999;
+  now += 59_999;
   assert.equal(status(await get(home)), "HIT");
   assert.equal(status(await get(home, undefined, { headers: { Cookie: "_ga=test; _ga_ABC123=test" } })), "HIT");
   assert.equal(status(await get(home, undefined, { headers: { Cookie: "_ga=test; unrelated=test" } })), "HIT");
@@ -58,22 +58,38 @@ test("post updates clear both pages and an in-flight render cannot refill the ca
   assert.equal(await updated.text(), "updated");
 });
 
-test("a post hit records a view, and a counter flush refreshes article HTML only", async () => {
+test("a cached article keeps recording visits until its configured TTL expires", async (t) => {
   invalidatePageCache();
+  let now = 1_000;
+  t.mock.method(Date, "now", () => now);
   const recorded = [];
-  let version = 0;
-  const get = client({ views: { record: id => recorded.push(id), version: () => version } });
-  await get(home);
+  const get = client({ settings: { pageCachePostTtlSeconds: 60 }, recordView: id => recorded.push(id) });
   const render = (request) => {
     registerCachedPost(request, "post-id", true);
     return html();
   };
+
   assert.equal(status(await get(post, render)), "MISS");
+  now += 59_999;
   assert.equal(status(await get(post, render)), "HIT");
   assert.deepEqual(recorded, ["post-id"]);
-  version++;
+  now++;
   assert.equal(status(await get(post, render)), "MISS");
+});
+
+test("home and article TTL both default to 3600 seconds", async (t) => {
+  invalidatePageCache();
+  let now = 1_000;
+  t.mock.method(Date, "now", () => now);
+  const get = client();
+  assert.equal(status(await get(home)), "MISS");
+  assert.equal(status(await get(post)), "MISS");
+  now += 3_599_999;
   assert.equal(status(await get(home)), "HIT");
+  assert.equal(status(await get(post)), "HIT");
+  now++;
+  assert.equal(status(await get(home)), "MISS");
+  assert.equal(status(await get(post)), "MISS");
 });
 
 test("the shared byte budget evicts the least recently used page", async () => {
