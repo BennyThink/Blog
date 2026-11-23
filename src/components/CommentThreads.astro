@@ -1,0 +1,79 @@
+---
+import { getCommentCount } from "emdash";
+import { getDb } from "emdash/runtime";
+import CommentThread from "./CommentThread.astro";
+
+interface Props {
+	collection: "posts" | "pages";
+	contentId: string;
+}
+
+const { collection, contentId } = Astro.props;
+const label = collection === "pages" ? "留言" : "评论";
+const db = await getDb();
+const approved = db.selectFrom("_emdash_comments")
+	.where("collection", "=", collection)
+	.where("content_id", "=", contentId)
+	.where("status", "=", "approved");
+const roots = approved.where("parent_id", "is", null);
+const [total, rootCount] = await Promise.all([
+	getCommentCount(collection, contentId),
+	roots.select(({ fn }) => fn.countAll().as("count")).executeTakeFirstOrThrow(),
+]);
+
+const pageSize = 30;
+const lastPage = Math.max(1, Math.ceil(Number(rootCount.count) / pageSize));
+const requestedPage = Number(Astro.url.searchParams.get("comment-page") ?? "1");
+const page = Number.isSafeInteger(requestedPage) ? Math.min(Math.max(requestedPage, 1), lastPage) : 1;
+const pageHref = (number: number) => {
+	const params = new URLSearchParams(Astro.url.searchParams);
+	if (number === 1) params.delete("comment-page");
+	else params.set("comment-page", String(number));
+	const query = params.toString();
+	return `${Astro.url.pathname}${query ? `?${query}` : ""}#comments`;
+};
+
+const publicFields = ["id", "parent_id", "author_name", "author_user_id", "body", "created_at"] as const;
+const comments = await roots.select(publicFields)
+	.orderBy("created_at", "desc").orderBy("id", "desc")
+	.limit(pageSize).offset((page - 1) * pageSize).execute();
+const repliesByParent = new Map<string, typeof comments>();
+let parents = comments.map(comment => comment.id);
+while (parents.length) {
+	const descendants: typeof comments = [];
+	for (let offset = 0; offset < parents.length; offset += 100) {
+		descendants.push(...await approved.select(publicFields)
+			.where("parent_id", "in", parents.slice(offset, offset + 100))
+			.orderBy("created_at", "asc").orderBy("id", "asc").execute());
+	}
+	for (const reply of descendants) {
+		if (!reply.parent_id) continue;
+		const siblings = repliesByParent.get(reply.parent_id) ?? [];
+		siblings.push(reply);
+		repliesByParent.set(reply.parent_id, siblings);
+	}
+	parents = descendants.map(reply => reply.id);
+}
+const pageNumbers = Array.from({ length: lastPage }, (_, index) => index + 1)
+  .filter(number => number === 1 || number === lastPage || (page <= 3 ? number <= 5 : number >= page - 2 && number <= page));
+const paginationItems = pageNumbers.flatMap((page, index) => [
+  ...(index > 0 && page - pageNumbers[index - 1] > 1 ? [{ ellipsis: true as const }] : []),
+  { ellipsis: false as const, page },
+]);
+---
+
+<h3 class="ec-comments-heading">{total ? `${total} 条${label}` : `暂无${label}`}</h3>
+{comments.length > 0 && (
+	<ol class="ec-comments-list">
+		{comments.map(comment => <CommentThread comment={comment} repliesByParent={repliesByParent} />)}
+	</ol>
+)}
+{lastPage > 1 && <nav class="home-pagination" aria-label={label + "分页"}>
+      {page > 1 && <a class="home-pagination__prev" href={pageHref(page - 1)}>上一页</a>}
+      {paginationItems.map(item => item.ellipsis
+        ? <span class="home-pagination__ellipsis" aria-hidden="true">…</span>
+        : item.page === page
+          ? <span aria-current="page">{item.page}</span>
+          : <a href={pageHref(item.page)}>{item.page}</a>)}
+      {page < lastPage && <a class="home-pagination__next" href={pageHref(page + 1)}>下一页</a>}
+    </nav>}

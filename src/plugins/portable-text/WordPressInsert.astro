@@ -1,0 +1,44 @@
+---
+import InlineContent from "./InlineContent.astro";
+const node = Astro.props.node ?? {};
+const type = String(node._type ?? "");
+const content = typeof node.content === "string" ? node.content : "";
+const label = typeof node.label === "string" ? node.label : "";
+const href = typeof node.href === "string" ? node.href : "";
+const notices: Record<string, string> = {
+	v_notice: "sc_notice", v_error: "sc_error", v_warn: "sc_warn",
+	v_tips: "sc_tips", v_blue: "sc_blue", v_act: "sc_act",
+	alert_success: "alert-success", alert_info: "alert-info",
+	alert_warning: "alert-warning", alert_error: "alert-error",
+};
+const buttons: Record<string, string> = {
+	gb_button: "greenbtn", bb_button: "bluebtn", yb_button: "yellowbtn", lhb_button: "lhb",
+};
+const legacyLinks: Record<string, { className: string; icon: string }> = {
+	wp_dm: { className: "dl", icon: "↗" }, wp_dl: { className: "dl", icon: "↓" }, wp_gt: { className: "dl", icon: "⌘" },
+};
+const noticeClass = notices[type];
+const buttonClass = buttons[type];
+// Avoid scriptable URL schemes in saved block data.
+const safeHref = /^(https?:|mailto:|\/|#)/i.test(href) ? href : "";
+const attr = (name: string) => typeof node[name] === "string" ? node[name] : "";
+const src = safeHref && type.startsWith("wp_") ? safeHref : (/^(https?:|\/)/i.test(attr("src")) ? attr("src") : "");
+---
+
+{noticeClass && <div class:list={["wp-insert", "wp-insert--notice", type.startsWith("alert_") && "wp-insert--alert", `wp-insert--${noticeClass}`]}><InlineContent parts={node.contentParts} fallback={content} /></div>}
+{buttonClass && <a class:list={["wp-insert", "wp-insert--button", `wp-insert--${buttonClass}`]} href={safeHref || undefined} target={safeHref ? "_blank" : undefined} rel={safeHref ? "nofollow noopener noreferrer" : undefined}>{label}</a>}
+{legacyLinks[type] && <a class:list={["wp-insert", "wp-insert--button", "wp-insert--legacy-link"]} href={safeHref || undefined} target={safeHref ? "_blank" : undefined} rel={safeHref ? "nofollow noopener noreferrer" : undefined}><span aria-hidden="true">{legacyLinks[type].icon}</span> <InlineContent parts={node.contentParts} fallback={content} /></a>}
+{(type === "wp_demo" || type === "wp_download") && <div class="wp-insert wp-insert--legacy-action"><strong>{type === "wp_demo" ? "代码演示" : "下载"}</strong><p>{content}</p>{safeHref && <a href={safeHref} rel="nofollow">打开链接</a>}</div>}
+{type === "wp_video" && src && <video class="wp-insert wp-insert--media" src={src} controls preload="metadata" autoplay={node.play === true || node.play === "1"} />}
+{type === "wp_audio" && src && <audio class="wp-insert wp-insert--media" src={src} controls preload="metadata" loop autoplay={node.play === true || node.play === "1"} />}
+{type === "wp_netmusic" && /^[0-9]+$/.test(attr("id")) && <iframe class="wp-insert wp-insert--music" title="网易云音乐" src={`https://music.163.com/outchain/player?type=2&id=${attr("id")}&auto=${node.play === true ? 1 : 0}&height=66`} loading="lazy" />}
+{type === "wp_collapse" && <details class="wp-insert wp-insert--collapse"><summary>{attr("title") || "展开内容"}</summary><div><InlineContent parts={node.contentParts} fallback={content} /></div></details>}
+{type === "wp_dltable" && <div class="wp-insert wp-insert--download-card"><h3>文件下载</h3><dl><dt>文件名称</dt><dd>{attr("file")}</dd><dt>文件大小</dt><dd>{attr("size")}</dd><dt>下载地址</dt><dd>{content}</dd></dl></div>}
+{type === "wp_fanctdl" && <div class="wp-insert wp-insert--download-card"><h3>{attr("filename") || "文件下载"}</h3><p>{attr("filesize")}</p>{safeHref && <a class="wp-insert--button wp-insert--greenbtn" href={safeHref} rel="nofollow">{attr("filedown") || "下载文件"}</a>}<p>{content}</p></div>}
+{(type === "wp_reply" || type === "wp_secret") && <aside class="wp-insert wp-insert--restricted"><strong>{type === "wp_reply" ? "旧回复后可见内容" : "旧密码保护内容"}</strong><p>此内容已迁移为安全占位块。请在编辑器中检查访问条件并重新设置后再发布。</p></aside>}
+{type === "wp_phpcode" && <aside class="wp-insert wp-insert--restricted"><strong>旧 PHP 插件代码</strong><p>文件：{attr("file")}。PHP 不会在站点上执行；请将所需功能改写为安全的组件。</p></aside>}
+{type === "wp_neilian" && <aside class="wp-insert wp-insert--restricted"><strong>旧站文章内链</strong><p>旧文章 ID：{attr("ids")}。请在编辑器中替换为本站文章链接。</p>{content && <p>{content}</p>}</aside>}
+{type === "wp_nextpage" && <hr class="wp-insert wp-insert--pagebreak" aria-label={label || "分页分隔"} />}
+{type === "wp_mark" && <mark class="wp-insert wp-insert--mark"><InlineContent parts={node.contentParts} fallback={content} /></mark>}
+{type === "wp_center" && <div class="wp-insert wp-insert--center"><InlineContent parts={node.contentParts} fallback={content} /></div>}
+{type === "wp_indent" && <p class="wp-insert wp-insert--indent"><InlineContent parts={node.contentParts} fallback={content} /></p>}

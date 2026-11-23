@@ -1,37 +1,20 @@
-version: '3.1'
-
+name: tudou-emdash
 services:
-  db:
-    image: ubuntu/mysql:8.0-22.04_beta
-    restart: always
+  emdash:
+    image: ghcr.io/bennythink/blog:latest
+    ports:
+      - "127.0.0.1:4321:4321"
+    env_file:
+      - .env
     volumes:
-      - ./db_data:/var/lib/mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: 'root'
-    ports:
-      - "127.0.0.1:3306:3306"
-      - "172.17.0.1:3306:3306" # for ytdlbot
-      - "192.168.6.1:3306:3306"
-    command: "--skip-log-bin"
-
-  benny:
-    image: wordpress:php8.5-apache
-    restart: always
-    environment:
-      WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_USER: root
-      WORDPRESS_DB_PASSWORD: root
-      WORDPRESS_DB_NAME: benny
-    volumes:
-      - ./www/dmesg.app/:/var/www/html
-    ports:
-      - "127.0.0.1:10000:80"
-  pages:
-    image: pages
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command:
-      [ "python", "server.py","-h=0.0.0.0" ]
-    ports:
-      - "127.0.0.1:20080:20080"
+      - type: bind
+        source: ./data
+        target: /app/data
+    restart: unless-stopped
+    init: true
+    healthcheck:
+      test: ["CMD", "node", "--input-type=module", "-e", "const r = await fetch('http://127.0.0.1:4321/'); if (!r.ok) process.exit(1)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 120s
+      retries: 5

@@ -1,0 +1,136 @@
+---
+import { getCommentCount, getEmDashCollection, getTaxonomyTermsWithCacheHint, type TaxonomyTerm } from "emdash";
+import { getDb } from "emdash/runtime";
+import { Image } from "emdash/ui";
+import { getPostThumbnail } from "../utils/post-thumbnail";
+import { postPath } from "../utils/post-url";
+import { proxyImage } from "../utils/media-proxy";
+import { getThemeSettings } from "../theme/settings";
+
+interface Props {
+  currentPostId?: string;
+}
+
+interface ContentRow {
+  id: string;
+  status: string;
+  deleted_at: string | null;
+  published_at: string | null;
+}
+
+const { currentPostId } = Astro.props;
+const { proxyUrl } = await getThemeSettings(Astro.locals, Astro.request);
+const db = (await getDb()).$extendTables<{ ec_posts: ContentRow; ec_pages: ContentRow }>();
+const publishedPosts = db.selectFrom("ec_posts")
+  .where("status", "=", "published")
+  .where("deleted_at", "is", null);
+const candidates = currentPostId ? publishedPosts.where("id", "!=", currentPostId) : publishedPosts;
+const [sample, categories, tags, postStats, pageStats, commentStats] = await Promise.all([
+  candidates.select("id").orderBy(eb => eb.fn<number>("random", [])).limit(3).execute(),
+  getTaxonomyTermsWithCacheHint("category", { includeCounts: true }),
+  getTaxonomyTermsWithCacheHint("tag", { includeCounts: false }),
+  publishedPosts.select(eb => [
+    eb.fn.countAll<number>().as("count"),
+    eb.fn.max("published_at").as("latest"),
+  ]).executeTakeFirstOrThrow(),
+  db.selectFrom("ec_pages")
+    .where("status", "=", "published")
+    .where("deleted_at", "is", null)
+    .select(eb => eb.fn.countAll<number>().as("count")).executeTakeFirstOrThrow(),
+  db.selectFrom("_emdash_comments")
+    .select(eb => eb.fn.countAll<number>().as("count")).executeTakeFirstOrThrow(),
+]);
+
+const posts = sample.length ? await getEmDashCollection("posts", {
+  status: "published",
+  where: { id: sample.map(({ id }) => id) },
+  limit: 3,
+}) : undefined;
+if (Astro.cache?.enabled) {
+  if (posts) Astro.cache.set(posts.cacheHint);
+  Astro.cache.set(categories.cacheHint);
+  Astro.cache.set(tags.cacheHint);
+  Astro.cache.set({ tags: ["posts", "pages"] });
+}
+
+const recommendations = await Promise.all((posts?.entries ?? []).map(async post => ({
+  href: postPath(post.id),
+  title: post.data.title,
+  image: proxyImage({ ...getPostThumbnail(post.data), alt: "" }, proxyUrl),
+  publishedAt: post.data.publishedAt,
+  comments: await getCommentCount("posts", post.data.id),
+})));
+
+function flattenTerms(terms: TaxonomyTerm[]): TaxonomyTerm[] {
+  return terms.flatMap(term => [term, ...flattenTerms(term.children)]);
+}
+
+const categoryTerms = flattenTerms(categories.data);
+const siteDate = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Asia/Shanghai",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const founded = "2015-08-23";
+const runningDays = Math.max(0, (Date.parse(siteDate.format(new Date())) - Date.parse(founded)) / 86_400_000);
+// Migration rewrote modified timestamps, so use the latest article publication.
+const lastUpdate = postStats.latest ? siteDate.format(new Date(postStats.latest)).replace(/-0/g, "-") : "—";
+const stats = [
+  ["日志总数", `${postStats.count} 篇`],
+  ["评论数目", `${commentStats.count} 条`],
+  ["建站日期", founded],
+  ["运行天数", `${runningDays} 天`],
+  ["标签总数", `${flattenTerms(tags.data).length} 个`],
+  ["页面总数", `${pageStats.count} 个`],
+  ["分类总数", `${categoryTerms.length} 个`],
+  ["最后更新", lastUpdate],
+];
+const loggedIn = Boolean(Astro.locals.user);
+---
+<aside class="theme-sidebar" aria-label="博客侧栏">
+  <section class="sidebar-panel sidebar-recommendations">
+    <h2>你可能喜欢</h2>
+    {recommendations.length > 0 ? (
+      <ul>
+        {recommendations.map(({ href, title, image, publishedAt, comments }) => (
+          <li>
+            <a href={href} title={title}>
+              <Image image={image} sizes="100px" class="sidebar-recommendations__image" />
+              <span class="sidebar-recommendations__body">
+                <span class="sidebar-recommendations__title">{title}</span>
+                <span class="sidebar-recommendations__meta">
+                  {publishedAt && <time datetime={publishedAt.toISOString()}>{siteDate.format(publishedAt)}</time>}
+                  <span>{comments} 评论</span>
+                </span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    ) : <p class="sidebar-empty">还没有文章。</p>}
+  </section>
+
+  <section class="sidebar-panel">
+    <h2>文章分类</h2>
+    {categoryTerms.length > 0 ? (
+      <ul class="sidebar-categories">
+        {categoryTerms.map(term => <li><a href={`/${term.slug}`}>{term.label}</a> <span>({term.count ?? 0})</span></li>)}
+      </ul>
+    ) : <p class="sidebar-empty">暂无分类。</p>}
+  </section>
+
+  <section class="sidebar-panel sidebar-stats">
+    <h2>网站统计</h2>
+    <dl>
+      {stats.map(([label, value]) => <div><dt>{label}：</dt><dd>{value}</dd></div>)}
+    </dl>
+  </section>
+
+  <section class="sidebar-panel sidebar-owner">
+    <h2>主人我在这 (=￣ω￣=)</h2>
+    <p>{loggedIn ? "欢迎回来，主人。" : "欢迎来访，随便看看吧。"}</p>
+    <a class="sidebar-owner__login" href="/_emdash/admin">{loggedIn ? "进入站长后台" : "站长登录"}</a>
+    <a href="/rss.xml">订阅文章 RSS</a>
+  </section>
+</aside>

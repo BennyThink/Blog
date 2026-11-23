@@ -1,0 +1,10 @@
+---
+import { getRequestContext } from "emdash/request-context";
+
+// Sample after the main content renders so its queries count toward the footer.
+const metrics = getRequestContext()?.metrics;
+---
+
+{metrics && (
+	<small class="site-footer__meta">查询 {metrics.dbCount} 次，服务端耗时 {Math.round(performance.now() - metrics.start)} 毫秒</small>
+)}

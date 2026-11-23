@@ -1,0 +1,56 @@
+---
+import type { ContentBylineCredit } from "emdash";
+import type { ContentEntry, InferCollectionData } from "emdash";
+import { Image } from "emdash/ui";
+import ArticleLike from "./ArticleLike.astro";
+import { proxyImage, proxyMediaUrl } from "../utils/media-proxy";
+import { getThemeSettings } from "../theme/settings";
+
+interface Props {
+  postId: string;
+  likeCount?: number;
+  bylines: ContentBylineCredit[];
+  previous?: { title: string; href: string };
+  next?: { title: string; href: string };
+  canonicalUrl: string;
+  recommendations: Array<{ post: ContentEntry<InferCollectionData<"posts">>; href: string }>;
+}
+const { postId, likeCount, bylines, previous, next, canonicalUrl, recommendations } = Astro.props;
+const { proxyUrl } = await getThemeSettings(Astro.locals, Astro.request);
+const author = bylines[0]?.byline;
+const displayName = author?.displayName ?? "本站作者";
+const biography = author?.bio ?? "";
+const fallbackAvatar = (key: string) => {
+  let hash = 2166136261;
+  for (const char of key) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return `/theme/avatars/${(hash >>> 0) % 19 + 1}.png`;
+};
+const avatar = author?.avatarStorageKey
+  ? proxyMediaUrl(Astro.locals.emdash?.getPublicMediaUrl?.(author.avatarStorageKey) ?? `/_emdash/api/media/file/${author.avatarStorageKey.split("/").map(encodeURIComponent).join("/")}`, proxyUrl)
+  : displayName === "Benny小土豆" ? "/theme/author-avatar.png" : fallbackAvatar(author?.slug ?? displayName);
+const profileUrl = author?.websiteUrl ?? "/about-me";
+---
+
+<section class="article-copyright" aria-label="版权声明">
+  <p>⚑ 文章版权归原作者所有丨本站默认采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="license">CC-BY-NC-SA 4.0</a> 协议进行授权丨<br />转载必须包含本声明，并以超链接形式注明原作者和本文原始地址：<br /><a href={canonicalUrl}>{canonicalUrl}</a></p>
+</section>
+<div class="article-social" aria-label="文章互动">
+  <ArticleLike postId={postId} count={likeCount} variant="detail" />
+  <button class="need-share-button article-share-button" type="button" data-share-networks="Weibo,Wechat,Douban,QQZone,Twitter,Pinterest,Facebook,Linkedin">● 分享:-)</button>
+</div>
+<nav class="article-nav" aria-label="上一篇和下一篇">
+  {previous ? <a href={previous.href}>« {previous.title}</a> : <span></span>}
+  {next ? <a href={next.href} class="article-nav-next">{next.title} »</a> : <span></span>}
+</nav>
+<section class="article-authors" aria-labelledby="author-card-title">
+  <img class="article-author-avatar" src={avatar} alt="" loading="lazy" />
+  <div><h2 id="author-card-title">关于作者：<a href={profileUrl}>{displayName}</a></h2>{biography ? <p>{biography}</p> : displayName === "Benny小土豆" && <p>If you have any further questions, feel free to <a href="/contact">contact me</a> in English or Chinese.</p>}<p class="article-author-links"><a href={profileUrl}>⌂ 作者主页</a></p></div>
+</section>
+<section class="article-random" aria-label="你可能喜欢">
+  {recommendations.length > 0 ? <ul>{recommendations.map(({post, href}) => {
+    const firstImage = post.data.content?.find(block => block._type === "image") as { asset?: { url?: string; _ref?: string }; alt?: string } | undefined;
+    const fallbackSrc = firstImage?.asset?.url || firstImage?.asset?._ref;
+    const image = proxyImage(post.data.featured_image || (fallbackSrc && /^(https?:\/\/|\/)/.test(fallbackSrc) ? { id: firstImage?.asset?._ref || "", src: fallbackSrc, alt: firstImage?.alt || "" } : undefined), proxyUrl);
+    return <li><a href={href} title={post.data.title}>{image && <Image image={image} sizes="(min-width: 900px) 185px, 25vw" />}<span>{post.data.title}</span></a></li>;
+  })}</ul> : <p>没有相关文章。</p>}
+</section>

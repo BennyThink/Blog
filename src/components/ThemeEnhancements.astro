@@ -1,0 +1,132 @@
+---
+import { ArrowUpIcon, DesktopIcon, MoonIcon, SunIcon } from "@phosphor-icons/react/ssr";
+import { getThemeSettings } from "../theme/settings";
+const settings = await getThemeSettings(Astro.locals, Astro.request);
+---
+<div hidden data-theme-features data-pangu={settings.pangu} data-lightbox={settings.lightbox} data-transparent-nav={settings.transparentNav} data-comment-placeholder={settings.commentPlaceholder}></div>
+
+<button type="button" class="back-to-top" data-back-to-top aria-label="返回顶部" title="返回顶部" hidden>
+  <ArrowUpIcon size={16} weight="bold" aria-hidden="true" />
+</button>
+
+<button type="button" class="theme-mode-toggle" data-theme-mode-toggle aria-label="主题：跟随系统" title="主题：跟随系统">
+  <DesktopIcon className="theme-mode-toggle__system" size={20} weight="regular" aria-hidden="true" />
+  <SunIcon className="theme-mode-toggle__light" size={20} weight="regular" aria-hidden="true" />
+  <MoonIcon className="theme-mode-toggle__dark" size={20} weight="regular" aria-hidden="true" />
+</button>
+
+<dialog class="image-lightbox" data-lightbox-dialog aria-label="查看大图" tabindex="-1" autofocus>
+  <button type="button" class="image-lightbox__nav image-lightbox__prev" data-lightbox-prev aria-label="上一张">‹</button>
+  <figure><img data-lightbox-image alt="" /><figcaption data-lightbox-caption></figcaption></figure>
+  <button type="button" class="image-lightbox__nav image-lightbox__next" data-lightbox-next aria-label="下一张">›</button>
+</dialog>
+<script>
+  import pangu from "../theme/pangu.js";
+  const features = document.querySelector<HTMLElement>("[data-theme-features]")!;
+  const themeToggle = document.querySelector<HTMLButtonElement>("[data-theme-mode-toggle]");
+  const themeModes = ["system", "light", "dark"] as const;
+  const themeModeNames = { system: "跟随系统", light: "浅色模式", dark: "深色模式" };
+  const readThemeMode = () => {
+    try {
+      const saved = localStorage.getItem("theme-mode");
+      return saved === "light" || saved === "dark" ? saved : "system";
+    } catch { return "system"; }
+  };
+  const applyThemeMode = (mode: typeof themeModes[number]) => {
+    document.documentElement.classList.toggle("light", mode === "light");
+    document.documentElement.classList.toggle("dark", mode === "dark");
+    if (themeToggle) {
+      themeToggle.dataset.mode = mode;
+      themeToggle.setAttribute("aria-label", `主题：${themeModeNames[mode]}`);
+      themeToggle.title = `主题：${themeModeNames[mode]}（点击切换）`;
+    }
+  };
+  let themeMode = readThemeMode();
+  applyThemeMode(themeMode);
+  themeToggle?.addEventListener("click", () => {
+    themeMode = themeModes[(themeModes.indexOf(themeMode) + 1) % themeModes.length];
+    try {
+      if (themeMode === "system") localStorage.removeItem("theme-mode");
+      else localStorage.setItem("theme-mode", themeMode);
+    } catch { /* The current page still changes when storage is unavailable. */ }
+    applyThemeMode(themeMode);
+  });
+  const backToTop = document.querySelector<HTMLButtonElement>("[data-back-to-top]");
+  if (backToTop) {
+    const updateBackToTop = () => backToTop.toggleAttribute("hidden", window.scrollY <= 200);
+    window.addEventListener("scroll", updateBackToTop, { passive: true });
+    window.addEventListener("pageshow", updateBackToTop);
+    backToTop.addEventListener("click", (event) => {
+      if (event.detail === 0) document.querySelector<HTMLElement>(".skip-link")?.focus({ preventScroll: true });
+      window.scrollTo({ top: 0 });
+    });
+    updateBackToTop();
+  }
+  if (features.dataset.transparentNav === "true") document.documentElement.classList.add("transparent-nav");
+  const header = document.querySelector(".site-header");
+  const observer = new IntersectionObserver(([entry]) => header?.classList.toggle("is-scrolled", !entry.isIntersecting));
+  const marker = document.createElement("div"); marker.className = "header-scroll-marker"; document.body.prepend(marker); observer.observe(marker);
+  document.querySelectorAll<HTMLTextAreaElement>(".ec-comment-form textarea[name=body]").forEach(el => { el.placeholder = features.dataset.commentPlaceholder || ""; });
+  const space = () => {
+    if (features.dataset.pangu === "true") { pangu?.spacingElementByClassName("prose"); pangu?.spacingElementByClassName("post__title"); pangu?.spacingElementByClassName("legacy-post"); }
+  };
+  if (document.readyState === "complete") space(); else window.addEventListener("load", space, { once: true });
+  const dialog = document.querySelector<HTMLDialogElement>("[data-lightbox-dialog]")!;
+  const preview = dialog.querySelector<HTMLImageElement>("[data-lightbox-image]")!;
+  const caption = dialog.querySelector<HTMLElement>("[data-lightbox-caption]")!;
+  const gallery: HTMLImageElement[] = [];
+  let activeIndex = 0;
+  const showImage = (index: number) => {
+    activeIndex = (index + gallery.length) % gallery.length;
+    const image = gallery[activeIndex];
+    preview.src = image.currentSrc || image.src;
+    preview.alt = image.alt;
+    caption.textContent = image.alt;
+  };
+  if (features.dataset.lightbox === "true") document.querySelectorAll<HTMLImageElement>(".prose img").forEach(image => {
+    if (image.closest("a, button")) return;
+    const anchor = document.createElement("a"); anchor.href = image.currentSrc || image.src;
+    if (!["https:", "http:"].includes(new URL(anchor.href).protocol)) return;
+    anchor.className = "image-zoom"; anchor.setAttribute("aria-label", `查看大图：${image.alt || "正文图片"}`);
+    gallery.push(image);
+    image.replaceWith(anchor); anchor.append(image);
+    anchor.addEventListener("click", event => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      showImage(gallery.indexOf(image));
+      if (!dialog.open) {
+        dialog.showModal();
+        dialog.focus({ preventScroll: true });
+      }
+    });
+  });
+  dialog.querySelector("[data-lightbox-prev]")?.addEventListener("click", () => showImage(activeIndex - 1));
+  dialog.querySelector("[data-lightbox-next]")?.addEventListener("click", () => showImage(activeIndex + 1));
+  preview.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("keydown", event => {
+    if (event.key === "ArrowLeft") { event.preventDefault(); showImage(activeIndex - 1); }
+    if (event.key === "ArrowRight") { event.preventDefault(); showImage(activeIndex + 1); }
+  });
+  dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
+  // Approved-comment endpoint returns derived image URLs only, never author email or private moderation data.
+  document.querySelectorAll<HTMLElement>(".ec-comment[data-comment-id]").forEach(async comment => {
+    const heading = comment.querySelector<HTMLElement>(".ec-comment-header"); if (!heading) return;
+    const fallback = new Image(36, 36); fallback.alt = ""; fallback.className = "comment-avatar";
+    fallback.src = `/theme/avatars/${(Array.from(comment.dataset.commentId!).reduce((hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619), 2166136261) >>> 0) % 19 + 1}.png`;
+    fallback.referrerPolicy = "no-referrer"; heading.prepend(fallback);
+    try {
+      const response = await fetch(`/_emdash/api/plugins/dmesg-theme/avatar?id=${encodeURIComponent(comment.dataset.commentId!)}`);
+      if (!response.ok) return;
+      const { data } = await response.json(); if (!data) return;
+      const image = new Image(36, 36); image.alt = ""; image.className = "comment-avatar"; image.referrerPolicy = "no-referrer";
+      let stage: "qq" | "gravatar" | "fallback" = data.qq ? "qq" : "gravatar";
+      image.addEventListener("load", () => fallback.replaceWith(image));
+      image.addEventListener("error", () => {
+        if (stage === "qq") { stage = "gravatar"; image.src = data.gravatar; }
+        else if (stage === "gravatar") { stage = "fallback"; image.referrerPolicy = ""; image.src = data.fallback; }
+      });
+      image.src = data.qq || data.gravatar;
+    } catch { fallback.hidden = false; /* Use the stable local visual fallback when offline. */ }
+  });
+</script>

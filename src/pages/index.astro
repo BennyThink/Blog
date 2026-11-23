@@ -1,0 +1,38 @@
+---
+import { getEmDashCollection, getSiteSettingsWithCacheHint } from "emdash";
+import Base from "../layouts/Base.astro";
+import ThemePostList from "../components/ThemePostList.astro";
+import { resolveBlogSiteIdentity } from "../utils/site-identity";
+const [result, settings] = await Promise.all([
+  getEmDashCollection("posts", { orderBy: { published_at: "desc" }, limit: 1000 }),
+  getSiteSettingsWithCacheHint(),
+]);
+if (Astro.cache?.enabled) { Astro.cache.set(result.cacheHint); Astro.cache.set(settings.cacheHint); }
+const { siteTitle, siteTagline } = resolveBlogSiteIdentity(settings.data);
+const currentPage = Math.max(1, Number(Astro.params.page ?? 1));
+const perPage = 10;
+const pageCount = Math.max(1, Math.ceil(result.entries.length / perPage));
+const pagePosts = result.entries.slice((currentPage - 1) * perPage, currentPage * perPage);
+const pageHref = (page: number) => page === 1 ? "/" : `/page/${page}`;
+const pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1)
+  .filter(page => page === 1 || page === pageCount || (currentPage <= 3 ? page <= 5 : page >= currentPage - 2 && page <= currentPage));
+const paginationItems = pageNumbers.flatMap((page, index) => [
+  ...(index > 0 && page - pageNumbers[index - 1] > 1 ? [{ ellipsis: true as const }] : []),
+  { ellipsis: false as const, page },
+]);
+---
+<Base title={siteTitle} homePage={currentPage} description={siteTagline}>
+  <ThemePostList posts={pagePosts}>
+    <h1 slot="heading" class="sr-only">{siteTitle} · 最新文章</h1>
+    <p slot="empty" class="empty-state">暂无文章。</p>
+    {pageCount > 1 && <nav slot="pagination" class="home-pagination" aria-label="首页文章分页">
+      {currentPage > 1 && <a class="home-pagination__prev" href={pageHref(currentPage - 1)}>上一页</a>}
+      {paginationItems.map(item => item.ellipsis
+        ? <span class="home-pagination__ellipsis" aria-hidden="true">…</span>
+        : item.page === currentPage
+          ? <span aria-current="page">{item.page}</span>
+          : <a href={pageHref(item.page)}>{item.page}</a>)}
+      {currentPage < pageCount && <a class="home-pagination__next" href={pageHref(currentPage + 1)}>下一页</a>}
+    </nav>}
+  </ThemePostList>
+</Base>

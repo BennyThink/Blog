@@ -1,0 +1,78 @@
+---
+import {
+	getEmDashEntry,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+	getTaxonomyTermsWithCacheHint,
+} from "emdash";
+import { PortableText } from "emdash/ui";
+import CategoryArchive from "../components/CategoryArchive.astro";
+import DateArchive from "../components/DateArchive.astro";
+import Guestbook from "../components/Guestbook.astro";
+import HighlightedCode from "../components/HighlightedCode.astro";
+import Base from "../layouts/Base.astro";
+import { resolveBlogSiteIdentity } from "../utils/site-identity";
+import { resolveSiteOrigin } from "../utils/site-origin";
+import ProxyPortableImage from "../components/ProxyPortableImage.astro";
+import "../styles/prose.css";
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.rewrite("/404");
+}
+
+const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+let category;
+const archiveYear = /^\d{4}$/.test(slug) ? Number(slug) : null;
+if (!page && archiveYear === null && !/^[0-9]{4}$/.test(slug)) {
+	const categories = await getTaxonomyTermsWithCacheHint("category", { includeCounts: false });
+	if (Astro.cache?.enabled) Astro.cache.set(categories.cacheHint);
+	category = categories.data.find(term => term.slug === slug);
+	if (!category) return Astro.rewrite("/404");
+}
+
+const seo = page
+	? getSeoMeta(page, {
+		siteTitle: resolveBlogSiteIdentity(await getSiteSettings()).siteTitle,
+		siteUrl: resolveSiteOrigin(Astro),
+		path: Astro.url.pathname.replace(/\/$/, ""),
+	})
+	: undefined;
+---
+
+{archiveYear !== null && archiveYear >= 1000 && archiveYear <= 9998 ? (
+	<DateArchive year={archiveYear} />
+) : category ? (
+	<CategoryArchive term={category} />
+) : page && seo && (
+	<Base
+		title={seo.title}
+		pageTitle={seo.ogTitle}
+		description={seo.description}
+		canonical={seo.canonical}
+		robots={seo.robots}
+		content={{ collection: "pages", id: page.data.id, slug }}
+	>
+		<article class="band section article-detail">
+			<div class="frame">
+				<div class="article-paper">
+					<header class="article-heading">
+						<h1 {...page.edit.title}>{page.data.title}</h1>
+					</header>
+					<div class="article-reading">
+						<div class="prose" {...page.edit.content}>
+							<PortableText value={page.data.content} components={{ type: { code: HighlightedCode, image: ProxyPortableImage } }} />
+						</div>
+						{slug === "message" && page.data.status === "published" && (
+							<Guestbook contentId={page.data.id} publishedAt={page.data.publishedAt} />
+						)}
+					</div>
+				</div>
+			</div>
+		</article>
+	</Base>
+)}

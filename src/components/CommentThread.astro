@@ -1,0 +1,21 @@
+---
+import GuestbookComment from "./GuestbookComment.astro";
+import type { ComponentProps } from "astro/types";
+
+type Comment = ComponentProps<typeof GuestbookComment>["comment"];
+interface Props {
+	comment: Comment;
+	repliesByParent: ReadonlyMap<string, Comment[]>;
+}
+const { comment, repliesByParent } = Astro.props;
+const replies = repliesByParent.get(comment.id);
+---
+<li>
+	<GuestbookComment comment={comment}>
+		{replies?.length && (
+			<ol class="ec-comment-replies">
+				{replies.map(reply => <Astro.self comment={reply} repliesByParent={repliesByParent} />)}
+			</ol>
+		)}
+	</GuestbookComment>
+</li>

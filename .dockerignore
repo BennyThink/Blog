@@ -1,1 +1,17 @@
-pages/frontend/node_modules/*
+# Only ship the EmDash application, never the WordPress installation.
+*
+!package.json
+!package-lock.json
+!astro.config.mjs
+!tsconfig.json
+!emdash-env.d.ts
+!src/
+!src/**
+!seed/
+!seed/**
+!scripts/
+!scripts/container-entrypoint.sh
+!scripts/migrate-post-urls.mjs
+
+!public/
+!public/**

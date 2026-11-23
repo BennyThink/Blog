@@ -1,0 +1,8 @@
+---
+import DateArchive from "../../components/DateArchive.astro";
+
+const year = Number(Astro.params.year);
+const month = Number(Astro.params.month);
+if (!Number.isInteger(year) || year < 1000 || year > 9998 || !Number.isInteger(month) || month < 1 || month > 12) return Astro.rewrite("/404");
+---
+<DateArchive year={year} month={month} />

@@ -1,0 +1,290 @@
+---
+import {
+	getEmDashEntry,
+	getCommentCount,
+	getEmDashCollection,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+} from "emdash";
+import { getRequestContext } from "emdash/request-context";
+import { Image, PortableText } from "emdash/ui";
+import HighlightedCode from "../components/HighlightedCode.astro";
+import ArticleComments from "../components/ArticleComments.astro";
+import Base from "../layouts/Base.astro";
+import ThemeSidebar from "../components/ThemeSidebar.astro";
+import ArticleExtras from "../components/ArticleExtras.astro";
+import Byline from "../components/Byline.astro";
+import ArticleIcon from "../components/ArticleIcon.astro";
+import { formatDate } from "../utils/locale";
+import { getContentCharacterCount } from "../utils/reading-time";
+import { resolveBlogSiteIdentity } from "../utils/site-identity";
+import { resolveSiteOrigin } from "../utils/site-origin";
+import { isPrewarmRequest } from "../theme/page-prewarm";
+import { registerCachedPost } from "../theme/page-cache";
+import { recordPostView } from "../utils/post-views";
+import { postPath } from "../utils/post-url";
+import { proxyImage, proxyMediaUrl } from "../utils/media-proxy";
+import ProxyPortableImage from "../components/ProxyPortableImage.astro";
+import { getThemeSettings } from "../theme/settings";
+import "../styles/prose.css";
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.rewrite("/404");
+}
+
+const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+const { proxyUrl } = await getThemeSettings(Astro.locals, Astro.request);
+
+if (!post) {
+	return Astro.rewrite("/404");
+}
+
+const requestContext = getRequestContext();
+const countView = !requestContext?.dbIsIsolated && Object.hasOwn(post.data, "views") && Astro.request.method === "GET"
+	&& post.data.status === "published" && !requestContext?.preview && !requestContext?.editMode;
+if (countView && !isPrewarmRequest(Astro.request)) recordPostView(post.data.id);
+registerCachedPost(Astro.request, post.data.id, countView);
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+const siteOrigin = resolveSiteOrigin(Astro);
+
+// Get featured image URL for OG fallback
+// The image may have src (external) or meta.storageKey (local)
+function getImageUrl(img: unknown): string | undefined {
+	if (!img || typeof img !== "object") return undefined;
+	const image = img as Record<string, unknown>;
+	// Check for direct src
+	if (typeof image.src === "string" && image.src) {
+			return proxyMediaUrl(image.src.startsWith("http")
+			? image.src
+				: `${siteOrigin}${image.src}`, proxyUrl);
+	}
+	// Build from storageKey for local images
+	const meta = image.meta as Record<string, unknown> | undefined;
+	const storageKey =
+		(typeof meta?.storageKey === "string" ? meta.storageKey : undefined) ||
+		(typeof image.id === "string" ? image.id : undefined);
+	if (storageKey) {
+		return proxyMediaUrl(`${siteOrigin}/_emdash/api/media/file/${storageKey}`, proxyUrl);
+	}
+	return undefined;
+}
+const featuredImageUrl = getImageUrl(post.data.featured_image);
+const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
+
+// Generate SEO meta from content
+const seo = getSeoMeta(post, {
+	siteTitle,
+	siteUrl: siteOrigin,
+	path: Astro.url.pathname.replace(/\/$/, ""),
+	defaultOgImage: featuredImageUrl,
+});
+
+// Bylines are already hydrated by getEmDashEntry
+const bylines = post.data.bylines ?? [];
+
+// Get reading time
+
+// This post's tags are already hydrated onto the entry by getEmDashEntry —
+// no extra query needed.
+const tags = post.data.terms?.tag ?? [];
+const categories = post.data.terms?.category ?? [];
+const author = bylines[0]?.byline;
+const authorName = author?.displayName ?? "本站作者";
+const commentCount = await getCommentCount("posts", post.data.id);
+const authorHref = author?.slug ? `/author/${encodeURIComponent(author.slug)}` : "/about-me";
+const wordCount = getContentCharacterCount(post.data.content);
+const formatAge = (date: Date) => {
+	const years = Math.floor((Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+	return years > 0 ? `${years} 年前` : formatDate(date, "long");
+};
+
+// WordPress stores <!--nextpage--> markers between Portable Text blocks.
+const contentBlocks = post.data.content ?? [];
+const pageBreakIndex = contentBlocks.findIndex((block) =>
+	JSON.stringify(block).includes("<!--nextpage-->") || JSON.stringify(block).includes("&lt;!--nextpage--&gt;"),
+);
+const articlePages = pageBreakIndex >= 0
+	? (() => {
+		const pages: typeof contentBlocks[] = [[]];
+		for (const block of contentBlocks) {
+			const serialized = JSON.stringify(block);
+			if (serialized.includes("<!--nextpage-->") || serialized.includes("&lt;!--nextpage--&gt;")) {
+				pages.push([]);
+				continue;
+			}
+			pages[pages.length - 1].push(block);
+		}
+		return pages;
+	})()
+	: [contentBlocks];
+const requestedPage = Number(Astro.url.searchParams.get("page") ?? "1");
+const articlePage = Number.isInteger(requestedPage) ? Math.min(Math.max(requestedPage, 1), articlePages.length) : 1;
+const visibleContent = articlePages[articlePage - 1] ?? contentBlocks;
+const pageHref = (page: number) => page === 1 ? postPath(slug) : `${postPath(slug)}?page=${page}`;
+const visiblePageNumbers = Array.from({ length: articlePages.length }, (_, index) => index + 1)
+	.filter((page) => page === 1 || page === articlePages.length || Math.abs(page - articlePage) <= 2);
+const paginationItems = visiblePageNumbers.flatMap((page, index) => [
+	...(index > 0 && page - visiblePageNumbers[index - 1] > 1 ? [{ type: "ellipsis" as const }] : []),
+	{ type: "page" as const, page },
+]);
+
+// Fetch a few extra recent posts in case the current post is among them.
+const { entries: recentPosts, cacheHint: recentPostsCacheHint } =
+	await getEmDashCollection("posts", {
+		orderBy: { published_at: "desc" },
+		limit: 100,
+	});
+if (Astro.cache?.enabled) Astro.cache.set(recentPostsCacheHint);
+const candidates = recentPosts.filter((p) => p.id !== post.id);
+const recommendations = [...candidates]
+	.filter(post => post.data.featured_image || (post.data.content ?? []).some(block => block._type === "image"))
+	.sort(() => Math.random() - 0.5)
+	.slice(0, 4)
+	.map(post => ({ post, href: postPath(post.id) }));
+const chronological = [...recentPosts].sort((a, b) => (a.data.publishedAt?.getTime() ?? 0) - (b.data.publishedAt?.getTime() ?? 0));
+const currentIndex = chronological.findIndex(p => p.id === post.id);
+const previous = currentIndex > 0 ? chronological[currentIndex - 1] : undefined;
+const next = currentIndex >= 0 && currentIndex < chronological.length - 1 ? chronological[currentIndex + 1] : undefined;
+
+const publishedAt = post.data.publishedAt ?? null;
+const publishDate = publishedAt ? formatDate(publishedAt, "long") : null;
+
+// The script below builds the table of contents and has the final say; this
+// guess keeps the sidebar from shifting when the page loads.
+const hasHeadings = (post.data.content ?? []).some(
+	(block) =>
+		block._type === "block" &&
+		"style" in block &&
+		block.style === "h2",
+);
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	image={seo.ogImage}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	type="article"
+	publishedTime={post.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={post.data.updatedAt.toISOString()}
+	content={{ collection: "posts", id: post.data.id, slug }}
+>
+  <article class="band section article-detail">
+    <div class="frame article-layout">
+      <div class="article-column">
+        <nav class="article-breadcrumbs" aria-label="面包屑">
+          <a href="/" title="返回首页" aria-label="返回首页"><ArticleIcon name="home" /></a><small aria-hidden="true"> &gt; </small>
+          {categories[0] && <><a href={`/${categories[0].slug}`}>{categories[0].label}</a><small aria-hidden="true"> &gt; </small></>}
+          <span class="muted" aria-current="page">{post.data.title}</span>
+        </nav>
+        <div class="article-paper">
+          <header class="article-heading">
+            <h1 {...post.edit.title}>{post.data.title}</h1>
+            <div class="article-dateline article-meta">
+              {categories[0] && <span id="mute-category" class="muted"><ArticleIcon name="category" /><a href={`/${categories[0].slug}`}> {categories[0].label}</a></span>}
+              <span class="muted"><ArticleIcon name="user" /> <a href={authorHref}>{authorName}</a></span>
+              {publishedAt && <time class="muted" datetime={publishedAt.toISOString()}><ArticleIcon name="clock" /> {formatAge(publishedAt)} ({formatDate(publishedAt, "long")})</time>}
+              <span class="muted"><ArticleIcon name="eye" /> {post.data.views ?? 0} 次浏览</span>
+              <span class="muted"><ArticleIcon name="words" /> {wordCount} 字</span>
+              <span class="muted"><ArticleIcon name="comments" /> <a href="#comments">{commentCount ? `${commentCount} 个评论` : "评论"}</a></span>
+            </div>
+          </header>
+          <div class="article-reading">
+            {post.data.featured_image && <div class="article-featured" {...post.edit.featured_image}>
+              <Image image={proxyImage(post.data.featured_image, proxyUrl)} sizes="(min-width: 1000px) 820px, 94vw" priority />
+            </div>}
+            <details class="article-toc article-toc--inline" hidden={!hasHeadings} data-toc>
+              <summary id="toc-title">文章目录</summary><ol class="toc__list" data-toc-list></ol>
+            </details>
+            <div class="prose" data-post-content><PortableText value={visibleContent} components={{ type: { code: HighlightedCode, image: ProxyPortableImage } }} /></div>
+            {articlePages.length > 1 && <nav class="fenye" aria-label="文章分页">
+              {articlePage > 1 && <a class="fenye__prev" href={pageHref(articlePage - 1)}><span>上一页</span></a>}
+              {paginationItems.map((item) => item.type === "ellipsis"
+                ? <span class="fenye__ellipsis" aria-hidden="true">…</span>
+                : item.page === articlePage
+                  ? <span aria-current="page">{item.page}</span>
+                  : <a href={pageHref(item.page)}><span>{item.page}</span></a>)}
+              {articlePage < articlePages.length && <a class="fenye__next" href={pageHref(articlePage + 1)}><span>下一页</span></a>}
+            </nav>}
+            {tags.length > 0 && <ul class="chips article-tags" aria-label="文章标签">{tags.map(term => <li><a class="chip" href={`/tag/${term.slug}`}>{term.label}</a></li>)}</ul>}
+            <ArticleExtras postId={post.data.id} likeCount={post.data.bigfa_ding} bylines={bylines} canonicalUrl={seo.canonical ?? Astro.url.href} recommendations={recommendations} previous={previous ? {title: previous.data.title, href: postPath(previous.id)} : undefined} next={next ? {title: next.data.title, href: postPath(next.id)} : undefined} />
+            <ArticleComments collection="posts" contentId={post.data.id} />
+          </div>
+        </div>
+      </div>
+      <aside class="article-sidebar" aria-label="文章侧栏">
+        <ThemeSidebar currentPostId={post.data.id} />
+      </aside>
+    </div>
+  </article>
+
+	<script>
+		// Build the collapsed table of contents from H2 headings.
+		function buildToc() {
+			const content = document.querySelector("[data-post-content]");
+			const toc = document.querySelector<HTMLElement>("[data-toc]");
+			const list = document.querySelector("[data-toc-list]");
+			if (!content || !toc || !list) return;
+
+			const headings = [
+				...content.querySelectorAll<HTMLHeadingElement>("h2"),
+			];
+			toc.hidden = headings.length === 0;
+			if (headings.length === 0) return;
+
+			list.replaceChildren();
+			const links = new Map<Element, HTMLAnchorElement>();
+			headings.forEach((heading, index) => {
+				if (!heading.id) {
+					heading.id = `heading-${index}`;
+				}
+
+				const item = document.createElement("li");
+				item.className =
+					heading.tagName === "H3"
+						? "toc__item toc__item--nested"
+						: "toc__item";
+
+				const link = document.createElement("a");
+				link.href = `#${heading.id}`;
+				link.className = "toc__link";
+				link.textContent = heading.textContent;
+
+				item.appendChild(link);
+				list.appendChild(item);
+				links.set(heading, link);
+			});
+
+			// Mark the section currently in view
+			const setCurrent = (link: HTMLAnchorElement) => {
+				for (const other of links.values()) {
+					other.removeAttribute("aria-current");
+				}
+				link.setAttribute("aria-current", "true");
+			};
+			const first = links.values().next().value;
+			if (first) setCurrent(first);
+
+			const observer = new IntersectionObserver(
+				(entries) => {
+					for (const entry of entries) {
+						const link = links.get(entry.target);
+						if (link && entry.isIntersecting) setCurrent(link);
+					}
+				},
+				{ rootMargin: "-80px 0px -80% 0px" },
+			);
+
+			headings.forEach((heading) => observer.observe(heading));
+		}
+
+		buildToc();
+	</script>
+</Base>

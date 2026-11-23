@@ -1,0 +1,6 @@
+---
+const { parts, fallback = "" } = Astro.props;
+const validParts = Array.isArray(parts) ? parts : null;
+const safeHref = (value: unknown) => typeof value === "string" && /^(https?:|mailto:|\/|#)/i.test(value) ? value : "";
+---
+{validParts ? validParts.map((part: any) => <span>{part.href && safeHref(part.href) ? <a href={safeHref(part.href)}>{part.strong ? <strong>{part.text}</strong> : part.em ? <em>{part.text}</em> : part.code ? <code>{part.text}</code> : part.text}</a> : part.strong ? <strong>{part.text}</strong> : part.em ? <em>{part.text}</em> : part.code ? <code>{part.text}</code> : part.underline ? <u>{part.text}</u> : part.text}</span>) : fallback}

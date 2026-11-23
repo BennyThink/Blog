@@ -1,0 +1,19 @@
+---
+import { getCollectionInfo } from "emdash";
+import ArticleComments from "./ArticleComments.astro";
+
+interface Props {
+	contentId: string;
+	publishedAt: Date | null;
+}
+
+const { contentId, publishedAt } = Astro.props;
+const settings = await getCollectionInfo("pages");
+const days = settings?.commentsClosedAfterDays ?? 0;
+const closesAt = publishedAt && new Date(publishedAt);
+if (closesAt && days > 0) closesAt.setDate(closesAt.getDate() + days);
+const open = Boolean(settings?.commentsEnabled && (!closesAt || days === 0 || new Date() <= closesAt));
+
+---
+
+<ArticleComments collection="pages" contentId={contentId} open={open} />

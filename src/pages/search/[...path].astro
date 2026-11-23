@@ -1,0 +1,139 @@
+---
+import { getEmDashCollection } from "emdash";
+import ThemePostList from "../../components/ThemePostList.astro";
+import Base from "../../layouts/Base.astro";
+import { getThemeSettings } from "../../theme/settings";
+import { searchPostIds } from "../../utils/search-posts";
+import { resolveSiteOrigin } from "../../utils/site-origin";
+
+export const prerender = false;
+
+const segments = Astro.url.pathname.slice("/search/".length).replace(/\/$/, "").split("/");
+const [encodedQuery, paginationSegment, pageSegment] = segments;
+const isPaginated = segments.length === 3 && paginationSegment === "page";
+if (segments.length !== 1 && !isPaginated) return Astro.rewrite("/404");
+
+let query = "";
+try {
+  query = (encodedQuery
+    ? decodeURIComponent(encodedQuery.replace(/\+/g, " "))
+    : Astro.url.searchParams.get("q") ?? "").trim();
+} catch {
+  return Astro.rewrite("/404");
+}
+
+// Browsers normalize dot-only segments, and Astro can reject a decoded literal
+// percent in the path. Keep those terms in the query string.
+const queryInPath = query !== "." && query !== ".." && !query.includes("%");
+const searchPath = `/search/${encodeURIComponent(query).replace(/%20/g, "+")}`;
+const requestedPage = isPaginated ? pageSegment : encodedQuery ? "1" : Astro.url.searchParams.get("page") ?? "1";
+if (!/^[1-9]\d*$/.test(requestedPage)) return Astro.rewrite("/404");
+const currentPage = Number(requestedPage);
+const perPage = 10;
+if (!Number.isSafeInteger(currentPage * perPage) || (!query && (isPaginated || currentPage > 1))) {
+  return Astro.rewrite("/404");
+}
+function pageHref(page: number) {
+  if (queryInPath) return page === 1 ? searchPath : `${searchPath}/page/${page}`;
+  const params = new URLSearchParams({ q: query });
+  if (page > 1) params.set("page", String(page));
+  return `/search?${params}`;
+}
+if (query && (queryInPath
+  ? Astro.url.pathname !== pageHref(currentPage)
+  : Boolean(encodedQuery))) {
+  return Astro.redirect(pageHref(currentPage), 301);
+}
+
+const matches = await searchPostIds(query);
+const ids = matches.slice((currentPage - 1) * perPage, currentPage * perPage);
+if (currentPage > 1 && ids.length === 0) return Astro.rewrite("/404");
+const result = ids.length > 0 ? await getEmDashCollection("posts", {
+  status: "published",
+  limit: perPage,
+  where: { id: ids },
+}) : undefined;
+if (result?.error) throw result.error;
+if (Astro.cache?.enabled) {
+  // New matches can appear after any post is published or edited.
+  Astro.cache.set({ tags: ["posts"] });
+  if (result) Astro.cache.set(result.cacheHint);
+}
+const postsById = new Map(result?.entries.map(entry => [entry.data.id, entry]));
+const posts = ids.flatMap(id => {
+  const post = postsById.get(id);
+  return post ? [post] : [];
+});
+
+const pageCount = Math.ceil(matches.length / perPage);
+const lastVisiblePage = Math.min(pageCount, currentPage + 2);
+const firstNearbyPage = Math.max(1, currentPage - 2);
+const nearbyPages = Array.from(
+  { length: Math.max(0, lastVisiblePage - firstNearbyPage + 1) },
+  (_, index) => firstNearbyPage + index,
+);
+const heading = query ? `有关【${query}】的内容` : "搜索文章";
+const theme = query ? undefined : await getThemeSettings(Astro.locals, Astro.request);
+---
+<Base title={query ? `${query} | 搜索结果` : "搜索"} description={heading} canonical={query ? new URL(pageHref(currentPage), resolveSiteOrigin(Astro)).href : undefined}>
+  <ThemePostList posts={posts}>
+    <header slot="heading" class:list={["search-heading", { "search-heading--form": !query }]}>
+      <h1>{heading}</h1>
+      {!query && <form action="/search" method="get" role="search" aria-label="搜索文章">
+        <input type="search" name="q" aria-label="关键词" placeholder={theme?.searchPlaceholder} required />
+        <button class="btn" type="submit">搜索</button>
+      </form>}
+    </header>
+
+    {query && <p slot="empty" class="empty-state">
+      没有找到相关文章。
+    </p>}
+
+    {lastVisiblePage > 1 && <nav slot="pagination" class="home-pagination" aria-label="搜索结果分页">
+      {currentPage > 1 && <a class="home-pagination__prev" href={pageHref(currentPage - 1)}>上一页</a>}
+      {firstNearbyPage > 1 && <a href={pageHref(1)}>1</a>}
+      {firstNearbyPage > 2 && <span class="home-pagination__ellipsis" aria-hidden="true">…</span>}
+      {nearbyPages.map(page => page === currentPage
+        ? <span aria-current="page">{page}</span>
+        : <a href={pageHref(page)}>{page}</a>)}
+      {lastVisiblePage < pageCount && <span class="home-pagination__ellipsis" aria-hidden="true">…</span>}
+      {currentPage < lastVisiblePage && <a class="home-pagination__next" href={pageHref(currentPage + 1)}>下一页</a>}
+    </nav>}
+  </ThemePostList>
+</Base>
+
+<style>
+  .search-heading {
+    padding-bottom: 4px;
+  }
+
+  .search-heading--form {
+    margin-bottom: 10px;
+    padding: 5px 20px;
+    background: var(--color-surface);
+  }
+
+  .search-heading h1 {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 1.125rem;
+    font-weight: 500;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .search-heading form {
+    display: flex;
+    gap: 8px;
+    margin-block: 8px;
+  }
+
+  .search-heading input {
+    width: 100%;
+    min-width: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+</style>

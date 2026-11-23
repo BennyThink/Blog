@@ -1,0 +1,15 @@
+---
+interface Props { name: "home" | "category" | "user" | "clock" | "eye" | "words" | "comments" | "edit"; }
+const { name } = Astro.props;
+const paths: Record<Props["name"], string> = {
+	home: "M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5H15v-6H9v6H4.5A1.5 1.5 0 0 1 3 19.5z",
+	category: "M4 4h16v16H4z M7 8h10M7 12h10M7 16h6",
+	user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0",
+	clock: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 6v6l4 2",
+	eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
+	words: "M3 5h18v14H3zM6 9h2m2 0h2m2 0h2m2 0h1M6 12h1m2 0h2m2 0h1m2 0h1M6 15h3m2 0h2m2 0h1",
+	comments: "M21 11.5a8.5 8.5 0 0 1-12.8 7.3L3 20l1.2-4.2A8.5 8.5 0 1 1 21 11.5Z",
+	edit: "m4 16.5-.8 4.3 4.3-.8L20 7.5 16.5 4zM14.5 6l3.5 3.5",
+};
+---
+<svg class="article-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>

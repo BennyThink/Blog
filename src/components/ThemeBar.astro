@@ -1,0 +1,37 @@
+---
+import { getThemeSettings } from "../theme/settings";
+import fortunes from "../theme/fortunes.json";
+const settings = await getThemeSettings(Astro.locals, Astro.request);
+const notices = settings.announcements.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+const loggedIn = !!Astro.locals.user;
+---
+<section class="band theme-bar" aria-label="站点公告">
+  <div class="frame theme-bar__inner">
+    <div class="theme-notices" data-notices data-fortunes={settings.fortunes ? JSON.stringify(fortunes.map(f => f.content)) : undefined}>
+      <div class="theme-notices__window">
+        {notices.length ? notices.map((notice, index) => <p data-notice hidden={index > 0}>{notice}</p>) : <p data-notice>Remember me.</p>}
+      </div>
+    </div>
+    <a class="theme-login" href="/_emdash/admin">{loggedIn ? "已登录 · 管理后台" : "站长登录"}</a>
+  </div>
+</section>
+<script>
+  document.querySelectorAll<HTMLElement>("[data-notices]").forEach(root => {
+    const windowEl = root.querySelector(".theme-notices__window")!;
+    const fortunes: string[] = JSON.parse(root.dataset.fortunes || "[]");
+    if (fortunes.length) {
+      const quote = document.createElement("p"); quote.dataset.notice = "";
+      quote.textContent = fortunes[Math.floor(Math.random() * fortunes.length)];
+      if (windowEl.textContent?.trim() === "Remember me.") windowEl.replaceChildren(quote);
+      else { quote.hidden = true; windowEl.append(quote); }
+    }
+    const items = [...root.querySelectorAll<HTMLElement>("[data-notice]")];
+    if (items.length < 2) return;
+    let index = 0;
+    const timer = window.setInterval(() => {
+      if (document.hidden || root.matches(":hover, :focus-within")) return;
+      items[index].hidden = true; index = (index + 1) % items.length; items[index].hidden = false;
+    }, 6500);
+    window.addEventListener("pagehide", () => clearInterval(timer), { once: true });
+  });
+</script>

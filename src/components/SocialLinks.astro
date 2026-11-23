@@ -1,0 +1,16 @@
+---
+import { getThemeSettings, safeSocialUrl } from "../theme/settings";
+import { Broadcast, EnvelopeSimple, GithubLogo, TelegramLogo, TwitterLogo } from "@phosphor-icons/react/ssr";
+
+const settings = await getThemeSettings(Astro.locals, Astro.request);
+const links = [
+  { label: "Telegram 频道", url: safeSocialUrl(settings.telegramChannel), Icon: Broadcast },
+  { label: "Email", url: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.email) ? `mailto:${settings.email}` : undefined, Icon: EnvelopeSimple },
+  { label: "GitHub", url: safeSocialUrl(settings.github), Icon: GithubLogo },
+  { label: "Twitter", url: safeSocialUrl(settings.twitter), Icon: TwitterLogo },
+  { label: "Telegram", url: /^[a-zA-Z0-9_]{5,32}$/.test(settings.telegram.replace(/^@/, "")) ? `https://t.me/${settings.telegram.replace(/^@/, "")}` : undefined, Icon: TelegramLogo },
+].filter((link) => link.url);
+---
+{links.length > 0 && <nav class="theme-social" aria-label="社交链接">
+  {links.map(({ label, url, Icon }) => <a href={url} aria-label={label} title={label} rel="me noopener noreferrer" target="_blank"><Icon size={22} weight="regular" aria-hidden="true" /></a>)}
+</nav>}
