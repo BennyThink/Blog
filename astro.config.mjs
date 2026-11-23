@@ -5,6 +5,7 @@ import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 import { Features } from "lightningcss";
 import { fileURLToPath } from "node:url";
+import { activatePrewarmListener } from "./scripts/prewarm-listener.mjs";
 
 const themePluginCard = {
 	name: "dmesg-theme-plugin-card",
@@ -125,6 +126,14 @@ export default defineConfig({
 	},
 	integrations: [
 		react(),
+		{
+			name: "dmesg-page-prewarm",
+			hooks: {
+				"astro:server:setup": ({ server }) => {
+					if (server.httpServer) activatePrewarmListener(server.httpServer, server.config.server.https ? "https" : "http");
+				},
+			},
+		},
 		emdash({
 			plugins: [{
                 id: "dmesg-theme", version: "0.1.0", format: "native",

@@ -19,7 +19,8 @@ COPY scripts/container-entrypoint.sh /usr/local/bin/emdash-entrypoint
 COPY scripts/migrate-post-urls.mjs ./scripts/migrate-post-urls.mjs
 RUN mkdir -p data/sqlite data/uploads data/sessions && chown -R node:node data \
     && chmod +x /usr/local/bin/emdash-entrypoint
+COPY scripts/start.mjs scripts/prewarm-listener.mjs ./scripts/
 USER node
 EXPOSE 4321
 ENTRYPOINT ["emdash-entrypoint"]
-CMD ["node", "./dist/server/entry.mjs"]
+CMD ["node", "./scripts/start.mjs"]

@@ -6,9 +6,14 @@ export function isPageCacheSize(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= maxPageCacheMiB;
 }
 
+export function isPrewarmTime(value: unknown): value is string {
+  return typeof value === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
 export const publicDefaults = {
   proxyUrl: "",
   pageCacheEnabled: true, pageCacheSizeMiB: 24,
+  pageCachePrewarm: "off", pageCachePrewarmTime: "07:00",
   announcements: "", fortunes: true, searchPlaceholder: "搜索文章…",
   commentPlaceholder: "写下你的想法…", keywords: "", description: "",
   titleSeparator: " | ", copyright: "未经许可，请勿转载。", copyrightEnabled: true,
@@ -20,6 +25,13 @@ export type ThemeSettings = typeof publicDefaults;
 export const settingsSchema: Record<string, SettingField> = {
   pageCacheEnabled: { type: "boolean", label: "启用页面缓存", default: publicDefaults.pageCacheEnabled },
   pageCacheSizeMiB: { type: "number", label: "缓存容量（MiB）", default: publicDefaults.pageCacheSizeMiB, min: 1, max: maxPageCacheMiB },
+  pageCachePrewarm: { type: "select", label: "自动预缓存", default: publicDefaults.pageCachePrewarm, options: [
+    { value: "off", label: "关闭" },
+    { value: "startup", label: "网站启动后" },
+    { value: "post", label: "文章发布或更新后" },
+    { value: "daily", label: "每天固定时间" },
+  ] },
+  pageCachePrewarmTime: { type: "string", label: "预缓存时间（北京时间）", default: publicDefaults.pageCachePrewarmTime },
   telegramEnabled: { type: "boolean", label: "启用 Telegram 文章与评论通知", default: false },
   telegramBotToken: { type: "secret", label: "Telegram Bot Token" },
   telegramChannelId: { type: "string", label: "Telegram 频道 ID" },

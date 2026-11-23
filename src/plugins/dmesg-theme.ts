@@ -1,4 +1,5 @@
 import { getPageCacheStats, invalidateCachedPosts, invalidatePageCache } from "../theme/page-cache.ts";
+import { cancelPagePrewarm, getPagePrewarmStatus, queuePostPrewarm, runPagePrewarm } from "../theme/page-prewarm.ts";
 import { definePlugin } from "emdash";
 import type { PluginAdminConfig, PluginContext } from "emdash";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
@@ -29,8 +30,22 @@ export function createPlugin() {
             ctx.settings.get("pageCacheEnabled"),
             ctx.settings.get("pageCacheSizeMiB"),
           ]);
-          if (ctx.request.method === "POST") invalidatePageCache();
+          if (ctx.request.method === "POST") {
+            cancelPagePrewarm();
+            invalidatePageCache();
+          }
           return getPageCacheStats(enabled, capacity);
+        },
+      },
+      "page-cache-prewarm": {
+        permission: "plugins:manage",
+        methods: ["GET", "POST"],
+        request: { body: "none" },
+        handler: async (ctx) => {
+          if (ctx.request.method === "POST") {
+            void runPagePrewarm(new URL(ctx.request.url).host).catch(() => {});
+          }
+          return getPagePrewarmStatus();
         },
       },
       "telegram-webhook": {
@@ -153,7 +168,11 @@ export function createPlugin() {
       } },
     },
     hooks: {
-      "content:afterSave": async ({ collection }) => { if (collection === "posts") invalidatePageCache(); },
+      "content:afterSave": async ({ collection, content }) => {
+        if (collection !== "posts") return;
+        invalidatePageCache();
+        if (content.status === "published") queuePostPrewarm();
+      },
       "content:afterDelete": async ({ collection }) => { if (collection === "posts") invalidatePageCache(); },
       "content:afterUnpublish": async ({ collection }) => { if (collection === "posts") invalidatePageCache(); },
       "content:afterRestore": async ({ collection }) => { if (collection === "posts") invalidatePageCache(); },
@@ -234,6 +253,7 @@ export function createPlugin() {
       "content:afterPublish": { timeout: 10000, errorPolicy: "continue", handler: async (event, ctx) => {
         if (event.collection !== "posts") return;
         invalidatePageCache();
+        queuePostPrewarm();
         const id = String(event.content.id);
         if (!(await ctx.kv.get(`eligible:${id}`))) return;
         await ctx.kv.delete(`eligible:${id}`);

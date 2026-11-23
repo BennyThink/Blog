@@ -45,7 +45,7 @@ test("post updates clear both pages and an in-flight render cannot refill the ca
   const get = client();
   await get(home);
   const hooks = createPlugin().hooks;
-  await hooks["content:afterSave"].handler({ collection: "posts" });
+  await hooks["content:afterSave"].handler({ collection: "posts", content: { status: "published" } });
   assert.equal(status(await get(home)), "MISS");
 
   const response = await get(post, async () => {

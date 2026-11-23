@@ -1,5 +1,6 @@
 import type { APIContext } from "astro";
 import { getRequestContext } from "emdash";
+import { isPrewarmRequest } from "./page-prewarm.ts";
 import { getThemeSettings, isPageCacheSize, publicDefaults } from "./settings.ts";
 
 const homeTtl = 3 * 60_000;
@@ -68,10 +69,10 @@ function removePage(key: string, page: CachedPage) {
   retainedBytes -= page.body.byteLength;
 }
 
-function withCacheHeader(response: Response, status: keyof typeof requests) {
+function withCacheHeader(response: Response, status: keyof typeof requests, prewarm: boolean) {
   const headers = new Headers(response.headers);
   headers.set(cacheHeader, status);
-  requests[status]++;
+  if (!prewarm) requests[status]++;
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
@@ -84,6 +85,7 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
   const post = context.routePattern === "/[slug].html";
   if (!home && !post) return next();
 
+  const prewarm = isPrewarmRequest(request);
   const scope = getRequestContext();
   // This site uses Astro's default session cookie name.
   const hasSessionCookie = context.cookies.has("astro-session") || context.cookies.has("emdash-edit-mode");
@@ -91,7 +93,7 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
     || request.method !== "GET" || url.search || hasSessionCookie
     || request.headers.has("origin") || request.headers.has("authorization") || request.headers.has("range")
     || request.headers.has("if-none-match") || request.headers.has("if-modified-since")) {
-    return withCacheHeader(await next(), "BYPASS");
+    return withCacheHeader(await next(), "BYPASS", prewarm);
   }
 
   const key = url.origin + url.pathname;
@@ -102,8 +104,8 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
     if (page.expiresAt > Date.now() && page.viewsVersion === viewsVersion) {
       pages.set(key, page);
       retainedBytes += page.body.byteLength;
-      if (page.postId && page.countView) views.record(page.postId);
-      return withCacheHeader(new Response(page.body, { headers: page.headers }), "HIT");
+      if (!prewarm && page.postId && page.countView) views.record(page.postId);
+      return withCacheHeader(new Response(page.body, { headers: page.headers }), "HIT", prewarm);
     }
   }
 
@@ -117,14 +119,14 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
     || /\b(?:private|no-store|no-cache)\b/i.test(headers.get("cache-control") ?? "")
     || headers.get("vary")?.split(",").some(name => !["accept-encoding", "origin"].includes(name.trim().toLowerCase()))
     || generation !== renderGeneration) {
-    return withCacheHeader(response, "BYPASS");
+    return withCacheHeader(response, "BYPASS", prewarm);
   }
 
   const body = await response.arrayBuffer();
   const rendered = new Response(body, { headers, statusText: response.statusText });
   const budget = settings.pageCacheSizeMiB * 1024 * 1024;
-  if (body.byteLength === 0 || body.byteLength > budget || generation !== renderGeneration) {
-    return withCacheHeader(rendered, "BYPASS");
+  if (body.byteLength === 0 || body.byteLength > budget || generation !== renderGeneration || request.signal.aborted) {
+    return withCacheHeader(rendered, "BYPASS", prewarm);
   }
 
   const previous = pages.get(key);
@@ -143,5 +145,5 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
     removePage(oldestKey, oldest);
     evictions++;
   }
-  return withCacheHeader(rendered, "MISS");
+  return withCacheHeader(rendered, "MISS", prewarm);
 }

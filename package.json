@@ -11,7 +11,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "start": "node ./dist/server/entry.mjs",
+    "start": "node ./scripts/start.mjs",
     "typecheck": "astro check",
     "secrets:init": "emdash secrets generate --write .env",
     "migrate:v-notice": "node scripts/migrate-wp-shortcodes.mjs",

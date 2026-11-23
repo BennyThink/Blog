@@ -2,7 +2,8 @@ import type { APIContext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 import { getRequestContext } from "emdash";
 import { invalidateCachedPosts, invalidatePageCache, serveCachedPage } from "./theme/page-cache";
-import { isPageCacheSize, maxPageCacheMiB } from "./theme/settings";
+import { getThemeSettings, isPageCacheSize, isPrewarmTime, maxPageCacheMiB } from "./theme/settings";
+import { cancelPagePrewarm, getPrewarmPlan, initializePagePrewarm, prewarmPlanPath, refreshPrewarmSchedule } from "./theme/page-prewarm";
 import { getPostViewsVersion, recordPostView } from "./utils/post-views";
 
 const publicPostComments = /^\/_emdash\/api\/comments\/posts\/([\w-]+)\/?$/;
@@ -33,6 +34,9 @@ async function getAffectedPosts({ request, url, locals }: APIContext): Promise<s
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  initializePagePrewarm();
+  if (context.url.pathname === prewarmPlanPath) return getPrewarmPlan(context);
+
   const startedAt = Date.now();
   let response: Response | undefined;
   if (context.request.method === "POST" && /^\/_emdash\/api\/comments\/[^/]+\/[^/]+\/?$/.test(context.url.pathname)) {
@@ -61,6 +65,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
         error: { code: "INVALID_REQUEST", message: `缓存容量必须是 1 到 ${maxPageCacheMiB} 之间的整数。` },
       }, { status: 400 });
     }
+    const time = submitted?.values?.pageCachePrewarmTime;
+    if (time !== undefined && !isPrewarmTime(time)) {
+      response = Response.json({
+        success: false,
+        error: { code: "INVALID_REQUEST", message: "请选择有效的预缓存时间。" },
+      }, { status: 400 });
+    }
   }
   const commentAdminRequest = adminComments.test(url.pathname);
   const affectedPosts = commentAdminRequest
@@ -75,6 +86,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
     if (commentPost) invalidateCachedPosts([commentPost[1]]);
     else if (commentAdminRequest) invalidateCachedPosts(affectedPosts);
     else if (cacheMutationPath.test(url.pathname)) invalidatePageCache();
+    if (request.method === "PUT" && themeSettingsPath.test(url.pathname)) {
+      try {
+        const settings = await getThemeSettings(context.locals, request);
+        if (!settings.pageCacheEnabled) cancelPagePrewarm();
+        await refreshPrewarmSchedule(settings);
+      } catch (error) {
+        console.warn("Could not apply page prewarm settings", error);
+      }
+    }
   }
   const cfIp = context.request.headers.get("cf-connecting-ip")?.trim();
   const clientIp = cfIp && /^[\da-fA-F.:]+$/.test(cfIp) ? cfIp.replace(/^::ffff:/, "") : "unknown";

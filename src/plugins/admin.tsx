@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { getPageCacheStats } from "../theme/page-cache";
+import type { getPagePrewarmStatus } from "../theme/page-prewarm";
 import type { SettingField } from "emdash";
 import "./admin.css";
 
@@ -17,7 +18,7 @@ const tabs = [
   { id: "telegram", label: "Telegram 通知", keys: [
     "telegramEnabled", "telegramBotToken", "telegramChannelId", "telegramOwnerId",
   ] },
-  { id: "cache", label: "页面缓存", keys: ["pageCacheEnabled", "pageCacheSizeMiB"] },
+  { id: "cache", label: "页面缓存", keys: ["pageCacheEnabled", "pageCacheSizeMiB", "pageCachePrewarm", "pageCachePrewarmTime"] },
   { id: "services", label: "代码与服务", keys: ["headCode", "analyticsCode", "footerCode", "proxyUrl"] },
 ];
 
@@ -82,7 +83,7 @@ function SettingsField({ name, field, value, secretSet, onChange }: {
       break;
     case "select":
       input = <select id={id} value={text} onChange={(event) => onChange(event.currentTarget.value)}>
-        <option value="">请选择</option>
+        {name !== "pageCachePrewarm" && <option value="">请选择</option>}
         {field.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>;
       break;
@@ -92,7 +93,9 @@ function SettingsField({ name, field, value, secretSet, onChange }: {
         onChange={(event) => onChange(event.currentTarget.value === "" ? null : event.currentTarget.valueAsNumber)} />;
       break;
     default:
-      input = field.type === "string" && field.multiline
+      input = name === "pageCachePrewarmTime"
+        ? <input id={id} type="time" required value={text} onChange={(event) => onChange(event.currentTarget.value)} />
+        : field.type === "string" && field.multiline
         ? <textarea id={id} rows={4} value={text} onChange={(event) => onChange(event.currentTarget.value)} />
         : <input id={id} type={field.type === "string" ? "text" : field.type} value={text}
             placeholder={"placeholder" in field ? field.placeholder : undefined}
@@ -127,11 +130,59 @@ const numberFormat = new Intl.NumberFormat("zh-CN");
 const mibFormat = new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 });
 const percentFormat = new Intl.NumberFormat("zh-CN", { style: "percent", maximumFractionDigits: 1 });
 
+type PagePrewarmStatus = ReturnType<typeof getPagePrewarmStatus>;
+
+async function requestPrewarm(method: "GET" | "POST", signal?: AbortSignal): Promise<PagePrewarmStatus> {
+  const response = await fetch("/_emdash/api/plugins/dmesg-theme/page-cache-prewarm", {
+    method, signal, cache: "no-store", headers: { "X-EmDash-Request": "1" },
+  });
+  const result = await response.json() as { data?: PagePrewarmStatus; error?: { message?: string } };
+  if (!response.ok || !result.data) throw new Error(result.error?.message ?? "无法读取预缓存状态。");
+  return result.data;
+}
+
 function PageCacheStatus() {
   const [stats, setStats] = useState<PageCacheStats>();
   const [pending, setPending] = useState(true);
   const [feedback, setFeedback] = useState<Feedback>();
   const [refresh, setRefresh] = useState(0);
+  const [prewarm, setPrewarm] = useState<PagePrewarmStatus>();
+  const [starting, setStarting] = useState(false);
+  const [prewarmError, setPrewarmError] = useState("");
+  const prewarmRunning = prewarm?.running ?? false;
+
+  useEffect(() => {
+    if (starting || (prewarm && !prewarmRunning)) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      requestPrewarm("GET", controller.signal).then(result => {
+        if (controller.signal.aborted) return;
+        setPrewarm(result);
+        setPrewarmError("");
+        if (prewarmRunning && !result.running) setRefresh(previous => previous + 1);
+      }).catch(() => {
+        if (controller.signal.aborted) return;
+        setPrewarmError("无法读取预缓存状态。");
+        setPrewarm({ running: false, lastResult: undefined, error: undefined });
+      });
+    }, prewarmRunning ? 1_000 : 0);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [starting, prewarm]);
+
+  async function prewarmNow() {
+    setStarting(true);
+    setPrewarmError("");
+    try {
+      setPrewarm(await requestPrewarm("POST"));
+    } catch (error) {
+      setPrewarmError(error instanceof Error ? error.message : "预缓存失败。");
+    } finally {
+      setStarting(false);
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -181,7 +232,16 @@ function PageCacheStatus() {
       <button type="button" className="theme-settings__save" disabled={pending || !stats} onClick={() => void clear()}>
         清空缓存
       </button>
+      <button type="button" className="theme-settings__save" disabled={!stats?.enabled || pending || starting || prewarmRunning} onClick={() => void prewarmNow()}>
+        {starting || prewarmRunning ? "预缓存中…" : "立即预缓存"}
+      </button>
     </div>
+    <p>提前生成首页和最新 20 篇文章，访客打开时更快。</p>
+    {(prewarmError || prewarm?.error) && <p role="alert">{prewarmError || prewarm?.error}</p>}
+    {!prewarmRunning && !starting && !prewarm?.error && prewarm?.lastResult && <p role="status">
+      {prewarm.lastResult.disabled ? "请先启用页面缓存。" : prewarm.lastResult.cancelled ? "预缓存已取消。"
+        : `已预缓存 ${prewarm.lastResult.completed} 页${prewarm.lastResult.failed ? `，失败 ${prewarm.lastResult.failed} 页` : ""}。`}
+    </p>}
     {feedback && <p role={feedback.error ? "alert" : "status"}>{feedback.text}</p>}
   </section>;
 }
@@ -278,7 +338,9 @@ function ThemeSettingsPage() {
           void save(tab);
         }}>
           <fieldset disabled={busy} aria-label={tab.label}>
-            {tab.keys.map((key) => settings.schema[key] && <SettingsField key={key} name={key}
+            {tab.keys.filter(key => key !== "pageCachePrewarmTime"
+              || (draft.pageCachePrewarm ?? settings.values.pageCachePrewarm) === "daily")
+              .map((key) => settings.schema[key] && <SettingsField key={key} name={key}
               field={settings.schema[key]} secretSet={settings.secretsSet[key] === true}
               value={Object.hasOwn(draft, key) ? draft[key] : settings.values[key]}
               onChange={(value) => edit(tab.id, key, value)} />)}
