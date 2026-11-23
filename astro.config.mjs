@@ -25,6 +25,63 @@ const themePluginCard = {
 	},
 };
 
+const postsPublicationDateColumn = {
+	name: "dmesg-posts-publication-date-column",
+	enforce: "pre",
+	transform(code, id) {
+		if (!id.endsWith("/@emdash-cms/admin/dist/index.js")) return;
+
+		// Reuse the admin's server-side sorting and date formatting for the Posts list.
+		const publicationLabel = '_t({ id: "vaizKG", message: "Publication date" })';
+		const colSpan = "const colSpan = (i18n$10 ? 5 : 4) + listColumns.length + extensionColumns.length + (bulkEnabled ? 1 : 0)";
+		const edits = [
+			{
+				before: `${colSpan};`,
+				after: `${colSpan} + (collection === "posts" ? 1 : 0);`,
+			},
+			{
+				before: 'const dateSortField = dateField ?? "updatedAt";\n\tconst sortFields = [',
+				after: `const dateSortField = dateField ?? "updatedAt";
+	const sortFields = [
+		...(collection === "posts" && dateSortField !== "publishedAt"
+			? [{ field: "publishedAt", label: ${publicationLabel} }]
+			: []),`,
+			},
+			{
+				before: "extensionColumns.map((column) => /* @__PURE__ */ jsx(ExtensionColumnHeader, {",
+				after: `collection === "posts" && jsx(SortableTh, {
+							field: "publishedAt",
+							sort,
+							onSortChange,
+							label: ${publicationLabel},
+							...tertiaryColumn
+						}),
+						extensionColumns.map((column) => /* @__PURE__ */ jsx(ExtensionColumnHeader, {`,
+			},
+			{
+				before: "extensionColumns?.map(({ pluginId, extension }) => {",
+				after: `collection === "posts" && jsx("td", {
+				className: "whitespace-nowrap text-kumo-subtle",
+				...tertiaryColumn,
+				children: jsx("bdi", {
+					children: item.publishedAt
+						? formatDate(parseTimestamp(item.publishedAt), lingui.locale)
+						: "—"
+				})
+			}),
+			extensionColumns?.map(({ pluginId, extension }) => {`,
+			},
+		];
+		for (const { before, after } of edits) {
+			if (code.split(before).length !== 2) {
+				this.error("The EmDash content list changed. Review the Posts publication date column.");
+			}
+			code = code.replace(before, () => after);
+		}
+		return { code, map: null };
+	},
+};
+
 export default defineConfig({
 	site: process.env.EMDASH_SITE_URL || "http://localhost:4321",
 	output: "server",
@@ -39,9 +96,9 @@ export default defineConfig({
 		responsiveStyles: true,
 	},
 	vite: {
-		plugins: [themePluginCard],
+		plugins: [themePluginCard, postsPublicationDateColumn],
 		optimizeDeps: {
-			rolldownOptions: { plugins: [themePluginCard] },
+			rolldownOptions: { plugins: [themePluginCard, postsPublicationDateColumn] },
 		},
 		css: {
 			// Keep light-dark() native so the footer theme switcher works in
