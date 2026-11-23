@@ -1,3 +1,4 @@
+import { invalidatePageCache } from "../theme/page-cache.ts";
 import { definePlugin } from "emdash";
 import type { PluginAdminConfig, PluginContext } from "emdash";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
@@ -139,6 +140,10 @@ export function createPlugin() {
       } },
     },
     hooks: {
+      "content:afterSave": async ({ collection }) => { if (collection === "posts") invalidatePageCache(); },
+      "content:afterDelete": async ({ collection }) => { if (collection === "posts") invalidatePageCache(); },
+      "content:afterUnpublish": async ({ collection }) => { if (collection === "posts") invalidatePageCache(); },
+      "content:afterRestore": async ({ collection }) => { if (collection === "posts") invalidatePageCache(); },
       "page:metadata": async (_event, ctx) => {
         const keywords = await ctx.settings.get<string>("keywords");
         return keywords ? { kind: "meta", name: "keywords", content: keywords } : null;
@@ -215,6 +220,7 @@ export function createPlugin() {
       },
       "content:afterPublish": { timeout: 10000, errorPolicy: "continue", handler: async (event, ctx) => {
         if (event.collection !== "posts") return;
+        invalidatePageCache();
         const id = String(event.content.id);
         if (!(await ctx.kv.get(`eligible:${id}`))) return;
         await ctx.kv.delete(`eligible:${id}`);

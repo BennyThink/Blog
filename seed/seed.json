@@ -41,6 +41,11 @@
 					"slug": "excerpt",
 					"label": "Excerpt",
 					"type": "text"
+				},
+				{
+					"slug": "views",
+					"label": "Views",
+					"type": "integer"
 				}
 			]
 		},

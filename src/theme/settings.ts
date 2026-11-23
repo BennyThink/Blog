@@ -1,7 +1,14 @@
 import type { SettingField } from "emdash";
 
+export const maxPageCacheMiB = 128;
+
+export function isPageCacheSize(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= maxPageCacheMiB;
+}
+
 export const publicDefaults = {
   proxyUrl: "",
+  pageCacheEnabled: true, pageCacheSizeMiB: 24,
   announcements: "", fortunes: true, searchPlaceholder: "搜索文章…",
   commentPlaceholder: "写下你的想法…", keywords: "", description: "",
   titleSeparator: " | ", copyright: "未经许可，请勿转载。", copyrightEnabled: true,
@@ -11,6 +18,8 @@ export const publicDefaults = {
 };
 export type ThemeSettings = typeof publicDefaults;
 export const settingsSchema: Record<string, SettingField> = {
+  pageCacheEnabled: { type: "boolean", label: "启用页面缓存", default: publicDefaults.pageCacheEnabled },
+  pageCacheSizeMiB: { type: "number", label: "缓存容量（MiB）", default: publicDefaults.pageCacheSizeMiB, min: 1, max: maxPageCacheMiB },
   telegramEnabled: { type: "boolean", label: "启用 Telegram 文章与评论通知", default: false },
   telegramBotToken: { type: "secret", label: "Telegram Bot Token" },
   telegramChannelId: { type: "string", label: "Telegram 频道 ID" },
@@ -49,6 +58,7 @@ export const settingsSchema: Record<string, SettingField> = {
 export async function readPublicSettings(settings: { get<T>(key: string): Promise<T | null> }): Promise<ThemeSettings> {
   const entries = await Promise.all(Object.entries(publicDefaults).map(async ([key, fallback]) => {
     const value = await settings.get(key);
+    if (key === "pageCacheSizeMiB") return [key, isPageCacheSize(value) ? value : fallback];
     return [key, typeof value === typeof fallback ? value : fallback];
   }));
   return Object.fromEntries(entries) as ThemeSettings;
@@ -67,7 +77,7 @@ export async function getThemeSettings(locals: App.Locals, request: Request): Pr
 async function loadThemeSettings(locals: App.Locals, request: Request): Promise<ThemeSettings> {
   const result = await locals.emdash.handlePublicPluginApiRoute("dmesg-theme", "GET", "/settings", request);
   if (!result.success || !result.data) return { ...publicDefaults };
-  return result.data as ThemeSettings;
+  return { ...publicDefaults, ...result.data as Partial<ThemeSettings> };
 }
 
 export function safeSocialUrl(value: string): string | undefined {

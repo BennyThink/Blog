@@ -7,6 +7,7 @@ import {
 	decodeSlug,
 	getSiteSettings,
 } from "emdash";
+import { getRequestContext } from "emdash/request-context";
 import { Image, PortableText } from "emdash/ui";
 import HighlightedCode from "../components/HighlightedCode.astro";
 import ArticleComments from "../components/ArticleComments.astro";
@@ -19,6 +20,8 @@ import { formatDate } from "../utils/locale";
 import { getContentCharacterCount } from "../utils/reading-time";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
 import { resolveSiteOrigin } from "../utils/site-origin";
+import { registerCachedPostView } from "../theme/page-cache";
+import { recordPostView } from "../utils/post-views";
 import { postPath } from "../utils/post-url";
 import { proxyImage, proxyMediaUrl } from "../utils/media-proxy";
 import ProxyPortableImage from "../components/ProxyPortableImage.astro";
@@ -36,6 +39,13 @@ const { proxyUrl } = await getThemeSettings(Astro.locals, Astro.request);
 
 if (!post) {
 	return Astro.rewrite("/404");
+}
+
+const requestContext = getRequestContext();
+if (!requestContext?.dbIsIsolated && Object.hasOwn(post.data, "views") && Astro.request.method === "GET"
+	&& post.data.status === "published" && !requestContext?.preview && !requestContext?.editMode) {
+	recordPostView(post.data.id);
+	registerCachedPostView(Astro.request, post.data.id);
 }
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
@@ -181,7 +191,7 @@ const hasHeadings = (post.data.content ?? []).some(
               {categories[0] && <span id="mute-category" class="muted"><ArticleIcon name="category" /><a href={`/${categories[0].slug}`}> {categories[0].label}</a></span>}
               <span class="muted"><ArticleIcon name="user" /> <a href={authorHref}>{authorName}</a></span>
               {publishedAt && <time class="muted" datetime={publishedAt.toISOString()}><ArticleIcon name="clock" /> {formatAge(publishedAt)} ({formatDate(publishedAt, "long")})</time>}
-              {typeof post.data.views === "number" && <span class="muted"><ArticleIcon name="eye" /> {post.data.views} 次浏览</span>}
+              <span class="muted"><ArticleIcon name="eye" /> {post.data.views ?? 0} 次浏览</span>
               <span class="muted"><ArticleIcon name="words" /> {wordCount} 字</span>
               <span class="muted"><ArticleIcon name="comments" /> <a href="#comments">{commentCount ? `${commentCount} 个评论` : "评论"}</a></span>
             </div>

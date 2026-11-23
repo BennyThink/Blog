@@ -1,5 +1,11 @@
 import { defineMiddleware } from "astro:middleware";
 import { getRequestContext } from "emdash";
+import { invalidatePageCache, serveCachedPage } from "./theme/page-cache";
+import { isPageCacheSize, maxPageCacheMiB } from "./theme/settings";
+import { getPostViewsVersion, recordPostView } from "./utils/post-views";
+
+const cacheMutationPath = /^\/_emdash\/api\/(?:content|revisions|visual-editing|admin|import|menus|settings|site|taxonomies|widget-areas|comments)(?:[/.]|$)/;
+const themeSettingsPath = /^\/_emdash\/api\/admin\/plugins\/dmesg-theme\/settings\/?$/;
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const startedAt = Date.now();
@@ -20,7 +26,21 @@ export const onRequest = defineMiddleware(async (context, next) => {
       if (blocked.includes(address)) response = Response.json({ success: false, error: { code: "COMMENT_REJECTED", message: "评论不符合本站规则。" } }, { status: 403 });
     }
   }
-  response ??= await next();
+  const { request, url } = context;
+  if (request.method === "PUT" && themeSettingsPath.test(url.pathname) && context.locals.user) {
+    const submitted = await request.clone().json().catch(() => null);
+    const size = submitted?.values?.pageCacheSizeMiB;
+    if (size !== undefined && !isPageCacheSize(size)) {
+      response = Response.json({
+        success: false,
+        error: { code: "INVALID_REQUEST", message: `缓存容量必须是 1 到 ${maxPageCacheMiB} 之间的整数。` },
+      }, { status: 400 });
+    }
+  }
+  response ??= await serveCachedPage(context, next, { record: recordPostView, version: getPostViewsVersion });
+  if (response.ok && /^(POST|PUT|PATCH|DELETE)$/.test(request.method) && cacheMutationPath.test(url.pathname)) {
+    invalidatePageCache();
+  }
   const cfIp = context.request.headers.get("cf-connecting-ip")?.trim();
   const clientIp = cfIp && /^[\da-fA-F.:]+$/.test(cfIp) ? cfIp.replace(/^::ffff:/, "") : "unknown";
   console.log(JSON.stringify({

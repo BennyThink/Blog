@@ -16,6 +16,7 @@ const tabs = [
   { id: "telegram", label: "Telegram 通知", keys: [
     "telegramEnabled", "telegramBotToken", "telegramChannelId", "telegramOwnerId",
   ] },
+  { id: "cache", label: "页面缓存", keys: ["pageCacheEnabled", "pageCacheSizeMiB"] },
   { id: "services", label: "代码与服务", keys: ["headCode", "analyticsCode", "footerCode", "proxyUrl"] },
 ];
 
@@ -85,7 +86,8 @@ function SettingsField({ name, field, value, secretSet, onChange }: {
       </select>;
       break;
     case "number":
-      input = <input id={id} type="number" value={text} min={field.min} max={field.max} step="any"
+      input = <input id={id} type="number" value={text} min={field.min} max={field.max} step={name === "pageCacheSizeMiB" ? 1 : "any"}
+        required={name === "pageCacheSizeMiB"}
         onChange={(event) => onChange(event.currentTarget.value === "" ? null : event.currentTarget.valueAsNumber)} />;
       break;
     default:
