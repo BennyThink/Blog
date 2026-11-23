@@ -72,10 +72,10 @@
 
 ### 配置方法
 
-- 在 EmDash 管理后台的插件列表中打开“土豆 · 主题与功能”（`dmesg-theme`）的设置。配置存入现有数据库中的插件命名空间。
+- 在 EmDash 管理后台的插件列表中打开“土豆皮”（`dmesg-theme`）的设置。配置存入现有数据库中的插件命名空间。
 - 公告为每行一条纯文本；头部、统计、页尾三个字段接受所有者信任的 HTML。社交地址为空时不显示。
 - 站名、tagline、菜单、widget 和作者介绍仍使用 EmDash 原有管理入口，不重复保存。
-- Telegram 配置：从插件管理器打开“土豆 · 主题与功能”的设置页。Bot Token、频道 ID、Owner ID 和启用开关使用 EmDash 原生设置表单；Token 以 EmDash 加密密钥加密保存。保存配置后，首次发布文章或通知新评论时插件会用 EmDash 站点 URL 调用 Telegram `setWebhook`。站点须有公网 HTTPS 域名，Owner 须先主动打开 Bot 私聊。首次发布只通知一次；文章更新及导入不通知。测试没有连接真实 Telegram。
+- Telegram 配置：从插件管理器打开“土豆皮”的设置页。Bot Token、频道 ID、Owner ID 和启用开关使用 EmDash 原生设置表单；Token 以 EmDash 加密密钥加密保存。保存配置后，首次发布文章或通知新评论时插件会用 EmDash 站点 URL 调用 Telegram `setWebhook`。站点须有公网 HTTPS 域名，Owner 须先主动打开 Bot 私聊。首次发布只通知一次；文章更新及导入不通知。测试没有连接真实 Telegram。
 - `COMMENT_BLOCKED_IPS` 为逗号分隔的原始 IP；反向代理部署时先核对 adapter 的地址来源。
 - Akismet 使用 secret 设置保存 API Key；其 `comment-check` 需要提交评论 IP、站点地址、作者和正文。[Akismet API 文档](https://akismet.com/developers/detailed-docs/comment-check/)
 

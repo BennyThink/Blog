@@ -10,7 +10,7 @@ import { portableTextBlocks } from "./portable-text/config.mjs";
 
 export function createPlugin() {
   return definePlugin({
-    id: "dmesg-theme", displayName: "土豆 · 主题与功能", version: "0.1.0",
+    id: "dmesg-theme", displayName: "土豆皮", version: "0.1.0",
     description: "旧站主题适配、公告、SEO、评论规则及 Telegram 通知。",
     storage: { likes: { indexes: ["postId"] } },
     capabilities: ["hooks.page-fragments:register", "users:read", "comments:read", "content:read", "hooks.content-policy:register", "network:request"],
