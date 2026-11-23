@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createPlugin } from "../src/plugins/dmesg-theme.ts";
-import { invalidatePageCache, registerCachedPostView, serveCachedPage } from "../src/theme/page-cache.ts";
+import { getPageCacheStats, invalidatePageCache, registerCachedPostView, serveCachedPage } from "../src/theme/page-cache.ts";
 
 const home = "/";
 const post = "/article.html";
@@ -72,10 +72,21 @@ test("a post hit records a view, and a counter flush refreshes article HTML only
 
 test("the shared byte budget evicts the least recently used page", async () => {
   invalidatePageCache();
+  const before = getPageCacheStats(true, 1);
   const get = client({ settings: { pageCacheSizeMiB: 1 } });
   const render = () => html("文".repeat(180_000));
   assert.equal(status(await get(home, render)), "MISS");
   assert.equal(status(await get(post, render)), "MISS");
   assert.equal(status(await get(post, render)), "HIT");
   assert.equal(status(await get(home, render)), "MISS");
+  const filled = getPageCacheStats(true, 1);
+  assert.equal(filled.retainedBytes, 540_000);
+  assert.equal(filled.homeEntries, 1);
+  assert.equal(filled.postEntries, 0);
+  assert.equal(filled.evictions - before.evictions, 2);
+  assert.equal(filled.hits - before.hits, 1);
+  assert.equal(filled.misses - before.misses, 3);
+
+  invalidatePageCache();
+  assert.deepEqual(getPageCacheStats(true, 1), { ...filled, retainedBytes: 0, homeEntries: 0 });
 });

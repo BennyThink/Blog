@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import type { getPageCacheStats } from "../theme/page-cache";
 import type { SettingField } from "emdash";
 import "./admin.css";
 
@@ -105,7 +106,88 @@ function SettingsField({ name, field, value, secretSet, onChange }: {
   </div>;
 }
 
+type PageCacheStats = ReturnType<typeof getPageCacheStats>;
+
+async function requestCacheStats(method: "GET" | "POST", signal?: AbortSignal): Promise<PageCacheStats> {
+  const response = await fetch("/_emdash/api/plugins/dmesg-theme/page-cache", {
+    method, signal, cache: "no-store",
+    headers: { "X-EmDash-Request": "1" },
+  });
+  const result = await response.json().catch(() => null) as {
+    data?: PageCacheStats;
+    error?: { message?: string };
+  } | null;
+  if (!response.ok || !result?.data) {
+    throw new Error(result?.error?.message ?? "缓存操作失败，请重试。");
+  }
+  return result.data;
+}
+
+const numberFormat = new Intl.NumberFormat("zh-CN");
+const mibFormat = new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 });
+const percentFormat = new Intl.NumberFormat("zh-CN", { style: "percent", maximumFractionDigits: 1 });
+
+function PageCacheStatus() {
+  const [stats, setStats] = useState<PageCacheStats>();
+  const [pending, setPending] = useState(true);
+  const [feedback, setFeedback] = useState<Feedback>();
+  const [refresh, setRefresh] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    requestCacheStats("GET", controller.signal).then(data => {
+      if (!controller.signal.aborted) setStats(data);
+    }).catch((error: Error) => {
+      if (!controller.signal.aborted) setFeedback({ text: error.message, error: true });
+    }).finally(() => {
+      if (!controller.signal.aborted) setPending(false);
+    });
+    return () => controller.abort();
+  }, [refresh]);
+
+  async function clear() {
+    setPending(true);
+    setFeedback(undefined);
+    try {
+      setStats(await requestCacheStats("POST"));
+      setFeedback({ text: "页面缓存已清空。" });
+    } catch (error) {
+      setFeedback({ text: error instanceof Error ? error.message : "清空失败，请重试。", error: true });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const eligible = stats ? stats.hits + stats.misses : 0;
+  return <section className="theme-settings__cache" aria-labelledby="page-cache-status" aria-busy={pending}>
+    <h2 id="page-cache-status">缓存状态</h2>
+    <p>当前 Node 进程，累计统计自进程启动起。</p>
+    {stats && <dl>
+      <div><dt>状态</dt><dd>{stats.enabled ? "已启用" : "已关闭"}</dd></div>
+      <div><dt>HTML 用量</dt><dd>{mibFormat.format(stats.retainedBytes / 1024 ** 2)} / {mibFormat.format(stats.capacityBytes / 1024 ** 2)} MiB
+        （{percentFormat.format(stats.retainedBytes / stats.capacityBytes)}）</dd></div>
+      <div><dt>缓存条目</dt><dd>首页 {numberFormat.format(stats.homeEntries)} · 文章 {numberFormat.format(stats.postEntries)}</dd></div>
+      <div><dt>命中率</dt><dd>{eligible ? percentFormat.format(stats.hits / eligible) : "暂无数据"}</dd></div>
+      <div><dt>请求统计</dt><dd>命中 {numberFormat.format(stats.hits)} · 未命中 {numberFormat.format(stats.misses)} · 绕过 {numberFormat.format(stats.bypasses)}</dd></div>
+      <div><dt>容量淘汰</dt><dd>{numberFormat.format(stats.evictions)}</dd></div>
+    </dl>}
+    {pending && !stats && <p role="status">正在读取缓存状态…</p>}
+    <div className="theme-settings__cache-actions">
+      <button type="button" className="theme-settings__save" disabled={pending} onClick={() => {
+        setPending(true);
+        setFeedback(undefined);
+        setRefresh((previous) => previous + 1);
+      }}>刷新统计</button>
+      <button type="button" className="theme-settings__save" disabled={pending || !stats} onClick={() => void clear()}>
+        清空缓存
+      </button>
+    </div>
+    {feedback && <p role={feedback.error ? "alert" : "status"}>{feedback.text}</p>}
+  </section>;
+}
+
 function ThemeSettingsPage() {
+  const [cacheRevision, setCacheRevision] = useState(0);
   const [active, setActive] = useState(0);
   const [settings, setSettings] = useState<Settings>();
   const [draft, setDraft] = useState<Draft>({});
@@ -148,6 +230,7 @@ function ThemeSettingsPage() {
     setFeedback((previous) => ({ ...previous, [tab.id]: undefined }));
     try {
       setSettings(await requestSettings(updates));
+      if (tab.id === "cache") setCacheRevision((revision) => revision + 1);
       setDraft((previous) => {
         const remaining = { ...previous };
         for (const key of tab.keys) delete remaining[key];
@@ -189,6 +272,7 @@ function ThemeSettingsPage() {
       </div>
       {tabs.map((tab, index) => <section key={tab.id} role="tabpanel" hidden={active !== index}
         id={`theme-panel-${tab.id}`} aria-labelledby={`theme-tab-${tab.id}`}>
+        {active === index && tab.id === "cache" && <PageCacheStatus key={cacheRevision} />}
         {active === index && <form onSubmit={(event) => {
           event.preventDefault();
           void save(tab);

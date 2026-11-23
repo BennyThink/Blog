@@ -1,4 +1,4 @@
-import { invalidatePageCache } from "../theme/page-cache.ts";
+import { getPageCacheStats, invalidatePageCache } from "../theme/page-cache.ts";
 import { definePlugin } from "emdash";
 import type { PluginAdminConfig, PluginContext } from "emdash";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
@@ -20,6 +20,19 @@ export function createPlugin() {
       portableTextBlocks: portableTextBlocks as PluginAdminConfig["portableTextBlocks"],
     },
     routes: {
+      "page-cache": {
+        permission: "plugins:manage",
+        methods: ["GET", "POST"],
+        request: { body: "none" },
+        handler: async (ctx) => {
+          const [enabled, capacity] = await Promise.all([
+            ctx.settings.get("pageCacheEnabled"),
+            ctx.settings.get("pageCacheSizeMiB"),
+          ]);
+          if (ctx.request.method === "POST") invalidatePageCache();
+          return getPageCacheStats(enabled, capacity);
+        },
+      },
       "telegram-webhook": {
         public: true,
         methods: ["POST"],

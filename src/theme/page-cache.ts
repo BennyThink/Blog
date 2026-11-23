@@ -1,6 +1,6 @@
 import type { APIContext } from "astro";
 import { getRequestContext } from "emdash";
-import { getThemeSettings } from "./settings.ts";
+import { getThemeSettings, isPageCacheSize, publicDefaults } from "./settings.ts";
 
 const homeTtl = 3 * 60_000;
 const postTtl = 5 * 60_000;
@@ -12,12 +12,35 @@ interface CachedPage {
   expiresAt: number;
   postId?: string;
   viewsVersion: number;
+  home: boolean;
 }
 
 const pages = new Map<string, CachedPage>();
 const postViews = new WeakMap<Request, string>();
 let retainedBytes = 0;
 let generation = 0;
+const requests = { HIT: 0, MISS: 0, BYPASS: 0 };
+let evictions = 0;
+
+export function getPageCacheStats(enabled: unknown, capacity: unknown) {
+  const capacityMiB = isPageCacheSize(capacity) ? capacity : publicDefaults.pageCacheSizeMiB;
+  let homeEntries = 0;
+  for (const page of pages.values()) {
+    if (page.home) homeEntries++;
+  }
+
+  return {
+    enabled: typeof enabled === "boolean" ? enabled : publicDefaults.pageCacheEnabled,
+    capacityBytes: capacityMiB * 1024 * 1024,
+    retainedBytes,
+    homeEntries,
+    postEntries: pages.size - homeEntries,
+    hits: requests.HIT,
+    misses: requests.MISS,
+    bypasses: requests.BYPASS,
+    evictions,
+  };
+}
 
 export function invalidatePageCache() {
   generation++;
@@ -34,9 +57,10 @@ function removePage(key: string, page: CachedPage) {
   retainedBytes -= page.body.byteLength;
 }
 
-function withCacheHeader(response: Response, status: string) {
+function withCacheHeader(response: Response, status: keyof typeof requests) {
   const headers = new Headers(response.headers);
   headers.set(cacheHeader, status);
+  requests[status]++;
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
@@ -98,11 +122,13 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
     expiresAt: Date.now() + (home ? homeTtl : postTtl),
     postId: postViews.get(request),
     viewsVersion,
+    home,
   });
   retainedBytes += body.byteLength;
   for (const [oldestKey, oldest] of pages) {
     if (retainedBytes <= budget) break;
     removePage(oldestKey, oldest);
+    evictions++;
   }
   return withCacheHeader(rendered, "MISS");
 }
