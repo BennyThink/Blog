@@ -107,17 +107,22 @@
   font-weight: 600;
 }
 
-.theme-settings__cache dl {
+.page-cache-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
   gap: .75rem 1rem;
   margin-block: .875rem;
 }
 
-.theme-settings__cache dd {
+.page-cache-metrics dd {
   margin: 0;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.page-cache-widget__note {
+  font-size: .875rem;
+  color: var(--color-kumo-subtle, GrayText);
 }
 
 .theme-settings__cache-actions {

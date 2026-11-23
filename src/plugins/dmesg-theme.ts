@@ -17,6 +17,7 @@ export function createPlugin() {
     allowedHosts: ["api.telegram.org", "rest.akismet.com"],
     admin: {
       pages: [{ path: "/settings", label: "主题设置", icon: "settings" }],
+      widgets: [{ id: "page-cache", title: "页面缓存", size: "half" }],
       settingsSchema,
       portableTextBlocks: portableTextBlocks as PluginAdminConfig["portableTextBlocks"],
     },

@@ -130,6 +130,41 @@ const numberFormat = new Intl.NumberFormat("zh-CN");
 const mibFormat = new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 });
 const percentFormat = new Intl.NumberFormat("zh-CN", { style: "percent", maximumFractionDigits: 1 });
 
+function PageCacheMetrics({ stats }: { stats: PageCacheStats }) {
+  const eligible = stats.hits + stats.misses;
+  return <dl className="page-cache-metrics">
+    <div><dt>状态</dt><dd>{stats.enabled ? "已启用" : "已关闭"}</dd></div>
+    <div><dt>HTML 用量</dt><dd>{mibFormat.format(stats.retainedBytes / 1024 ** 2)} / {mibFormat.format(stats.capacityBytes / 1024 ** 2)} MiB
+      （{percentFormat.format(stats.retainedBytes / stats.capacityBytes)}）</dd></div>
+    <div><dt>缓存条目</dt><dd>首页 {numberFormat.format(stats.homeEntries)} · 文章 {numberFormat.format(stats.postEntries)}</dd></div>
+    <div><dt>命中率</dt><dd>{eligible ? percentFormat.format(stats.hits / eligible) : "暂无数据"}</dd></div>
+    <div><dt>请求统计</dt><dd>命中 {numberFormat.format(stats.hits)} · 未命中 {numberFormat.format(stats.misses)} · 绕过 {numberFormat.format(stats.bypasses)}</dd></div>
+    <div><dt>容量淘汰</dt><dd>{numberFormat.format(stats.evictions)}</dd></div>
+  </dl>;
+}
+
+function PageCacheWidget() {
+  const [stats, setStats] = useState<PageCacheStats>();
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    requestCacheStats("GET", controller.signal).then(stats => {
+      if (!controller.signal.aborted) setStats(stats);
+    }).catch((error: Error) => {
+      if (!controller.signal.aborted) setError(error.message);
+    });
+    return () => controller.abort();
+  }, []);
+
+  if (error) return <p role="alert">{error}</p>;
+  if (!stats) return <p role="status">正在读取缓存状态…</p>;
+  return <>
+    <PageCacheMetrics stats={stats} />
+    <p className="page-cache-widget__note">当前 Node 进程，累计统计自进程启动起。</p>
+  </>;
+}
+
 type PagePrewarmStatus = ReturnType<typeof getPagePrewarmStatus>;
 
 async function requestPrewarm(method: "GET" | "POST", signal?: AbortSignal): Promise<PagePrewarmStatus> {
@@ -209,19 +244,10 @@ function PageCacheStatus() {
     }
   }
 
-  const eligible = stats ? stats.hits + stats.misses : 0;
   return <section className="theme-settings__cache" aria-labelledby="page-cache-status" aria-busy={pending}>
     <h2 id="page-cache-status">缓存状态</h2>
     <p>当前 Node 进程，累计统计自进程启动起。</p>
-    {stats && <dl>
-      <div><dt>状态</dt><dd>{stats.enabled ? "已启用" : "已关闭"}</dd></div>
-      <div><dt>HTML 用量</dt><dd>{mibFormat.format(stats.retainedBytes / 1024 ** 2)} / {mibFormat.format(stats.capacityBytes / 1024 ** 2)} MiB
-        （{percentFormat.format(stats.retainedBytes / stats.capacityBytes)}）</dd></div>
-      <div><dt>缓存条目</dt><dd>首页 {numberFormat.format(stats.homeEntries)} · 文章 {numberFormat.format(stats.postEntries)}</dd></div>
-      <div><dt>命中率</dt><dd>{eligible ? percentFormat.format(stats.hits / eligible) : "暂无数据"}</dd></div>
-      <div><dt>请求统计</dt><dd>命中 {numberFormat.format(stats.hits)} · 未命中 {numberFormat.format(stats.misses)} · 绕过 {numberFormat.format(stats.bypasses)}</dd></div>
-      <div><dt>容量淘汰</dt><dd>{numberFormat.format(stats.evictions)}</dd></div>
-    </dl>}
+    {stats && <PageCacheMetrics stats={stats} />}
     {pending && !stats && <p role="status">正在读取缓存状态…</p>}
     <div className="theme-settings__cache-actions">
       <button type="button" className="theme-settings__save" disabled={pending} onClick={() => {
@@ -354,3 +380,4 @@ function ThemeSettingsPage() {
 }
 
 export const pages = { "/settings": ThemeSettingsPage };
+export const widgets = { "page-cache": PageCacheWidget };
