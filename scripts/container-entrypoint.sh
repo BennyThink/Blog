@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 mkdir -p /app/data/sqlite /app/data/uploads /app/data/sessions
-# Seed only a new volume. Never reapply sample content over an existing database.
+# Apply the initial site configuration when creating a database.
 if [ ! -f /app/data/sqlite/emdash.db ]; then
   if [ -f /app/data/sqlite/emdash.db-wal ] || [ -f /app/data/sqlite/emdash.db-shm ]; then
     echo "SQLite sidecars exist without the database; restore the database first." >&2

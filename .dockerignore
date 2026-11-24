@@ -12,6 +12,8 @@
 !scripts/
 !scripts/container-entrypoint.sh
 !scripts/migrate-post-urls.mjs
+!scripts/prewarm-listener.mjs
+!scripts/start.mjs
 
 !public/
 !public/**

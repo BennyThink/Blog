@@ -1,85 +1,66 @@
-# 土豆不好吃 · EmDash 迁移项目
+# 土豆不好吃 · EmDash 博客
 
-本阶段使用官方 Blog 示例数据，线上 WordPress 保持原样。
+这是一个基于 [EmDash](https://github.com/emdash-cms/emdash) 和 Astro 构建的自托管博客项目。它从 WordPress 迁移而来，保留了原站的文章 URL 和部分主题交互，并加入了 EmDash 插件、归档、评论、搜索、RSS、主题设置和页面缓存等定制功能。
 
-运行、数据目录、验收与后续导出说明见 [迁移说明](docs/migration.md)。
+本仓库是完整站点实现，包含站点配置、主题组件和插件，适合用作参考或按需改造。它不是可以直接安装到任意 EmDash 站点的独立主题包。
 
-逐步迁移清单见 [迁移步骤](docs/README.md)。Compose 文件为 `docker-compose.yml`，通过 bind mount 将数据库和媒体保存在项目的 `data/` 目录（含 `sqlite/`、`uploads/`、`sessions/`）。
+## 功能
+
+- 响应式首页、文章列表、文章详情、分类、标签、作者和年月归档
+- 经典 WordPress 固定链接兼容、RSS、全文搜索和 SEO 元数据
+- 文章评论、留言板、文章浏览量和主题设置管理
+- WordPress 风格的 Portable Text 内容扩展与迁移辅助脚本
+- SQLite 数据库、本地媒体存储和 Docker Compose 自托管配置
+- 可配置的页面缓存、缓存预热和媒体代理
+
+## 运行要求
+
+- Node.js 24 或更新版本
+- npm
+- Docker Desktop / Docker Engine 与 Docker Compose（使用容器部署时）
+
+## 本地开发
 
 ```sh
-npm run secrets:init  # 仅首次生成 .env；已有密钥时跳过
-docker compose up -d --build
-```
-
-首页：http://localhost:4321/
-
-后台：http://localhost:4321/_emdash/admin
-
-留言板使用 `/message` 页面及其关联评论。Docker 启动时会更新已有数据库的留言配置。直接用 `npm run dev` 启动恢复后的本地数据库时，先运行 `node scripts/migrate-post-urls.mjs`。
-
-图片代理可在后台「插件 → 土豆皮」设置 `WebP Cloud Services Proxy URL`（例如 `https://7bc5d24.webp.ee`）。留空时图片继续使用 EmDash 原始媒体地址；填写后，本站媒体 URL 的主机名会替换为该代理地址，并保留原路径与查询参数。
-
----
-
-# EmDash Blog Template
-
-A clean, minimal blog built with [EmDash](https://github.com/emdash-cms/emdash). Runs on any Node.js server with SQLite and local file storage.
-
-![Blog template homepage](https://raw.githubusercontent.com/emdash-cms/emdash/main/assets/templates/blog/latest/homepage-light-desktop.jpg)
-
-## What's Included
-
-- Featured post hero on the homepage
-- Post archive with reading time estimates
-- Category and tag archives
-- Full-text search
-- RSS feed
-- SEO metadata and JSON-LD
-- Dark/light mode
-
-## Pages
-
-| Page | Route |
-|---|---|
-| Homepage | `/` |
-| All posts | `/posts` |
-| Single post | `/posts/:slug` |
-| Category archive | `/category/:slug` |
-| Tag archive | `/tag/:slug` |
-| Search | `/search` |
-| Static pages | `/:slug` |
-| 404 | fallback |
-
-## Screenshots
-
-| | Desktop | Mobile |
-|---|---|---|
-| Light | ![homepage light desktop](https://raw.githubusercontent.com/emdash-cms/emdash/main/assets/templates/blog/latest/homepage-light-desktop.jpg) | ![homepage light mobile](https://raw.githubusercontent.com/emdash-cms/emdash/main/assets/templates/blog/latest/homepage-light-mobile.jpg) |
-| Dark | ![homepage dark desktop](https://raw.githubusercontent.com/emdash-cms/emdash/main/assets/templates/blog/latest/homepage-dark-desktop.jpg) | ![homepage dark mobile](https://raw.githubusercontent.com/emdash-cms/emdash/main/assets/templates/blog/latest/homepage-dark-mobile.jpg) |
-
-## Infrastructure
-
-- **Runtime:** Node.js
-- **Database:** SQLite (local file)
-- **Storage:** Local filesystem
-- **Framework:** Astro with `@astrojs/node`
-
-## Getting Started
-
-```bash
-npm install
+npm ci
 npm run dev
 ```
 
-Open http://localhost:4321/_emdash/admin and complete the setup wizard. EmDash runs database migrations and applies the blog seed during setup. The site is available at http://localhost:4321.
+打开 <http://localhost:4321/> 查看站点，打开 <http://localhost:4321/_emdash/admin> 进入 EmDash 管理界面。首次启动时根据管理界面的提示完成初始化。
 
-## Want Cloudflare Instead?
+## Docker 部署
 
-See the [Cloudflare variant](../blog-cloudflare) for a version that deploys to Cloudflare Workers with D1 and R2.
+首次部署时生成本地密钥，再通过 Compose 从仓库中的 `Dockerfile` 构建并启动服务：
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/emdash-cms/templates/tree/main/blog-cloudflare)
+```sh
+npm run secrets:init
+docker compose up -d --build
+```
 
-## See Also
+已有 `.env` 时请沿用原密钥。Compose 默认将站点绑定到 `127.0.0.1:4321`，数据保存在项目的 `data/` 目录中，包括 SQLite 数据库、媒体文件和会话数据。对外提供服务时，请在 `.env` 中将 `EMDASH_SITE_URL` 设为正式地址，再构建镜像，并在反向代理配置 HTTPS。
 
-- [All templates](../)
-- [EmDash documentation](https://docs.emdashcms.com/)
+备份前先停止容器，再备份整个 `data/` 目录；同时安全保存 `.env` 中的加密密钥。恢复时需要使用匹配的密钥和数据目录。
+
+## 初始内容与个性化
+
+`seed/seed.json` 提供文章和页面的内容模型、分类和标签定义、站点默认信息及主导航。新站初始化后，可在 EmDash 管理界面创建文章、导入旧站内容或修改站点设置。
+
+主题样式主要位于 `src/styles/theme.css`，基础设计变量位于 `src/styles/tokens.css`；页面组件在 `src/components/` 和 `src/pages/`，EmDash 插件位于 `src/plugins/`。
+
+旧 WordPress 主题的参考副本位于 `WordPress-root/`，该目录由 `.gitignore` 排除，不包含在仓库中。迁移脚本可帮助处理旧站短代码，但导入后仍应检查含有自定义标签、嵌入媒体或复杂排版的文章。
+
+## 常用命令
+
+```sh
+npm run dev             # 启动 Astro 开发服务器
+npm run build           # 构建站点
+npm run typecheck       # 检查 Astro 和 TypeScript
+npm test                # 运行项目测试
+npm run verify:docker   # 验证 Docker 部署和持久化
+```
+
+更多迁移和部署记录见 [`docs/`](docs/)。其中部分文档记录的是此站点的实际迁移过程，并非通用部署步骤。
+
+## 许可
+
+仓库根目录的 `LICENSE` 来自 EmDash 官方模板；部分随附资源和移植文件有各自的来源及许可说明。再分发前请阅读对应文件中的声明，并确认所需的署名和许可条件。
