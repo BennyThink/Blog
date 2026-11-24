@@ -37,7 +37,7 @@ const profileUrl = author?.websiteUrl?.trim() || authorArchiveUrl;
     <p>原文地址：<a href={canonicalUrl}>{canonicalUrl}</a></p>
   </section>
 )}
-<div class="article-social" aria-label="文章互动">
+<div class="article-actions" aria-label="文章互动">
   <ArticleLike postId={postId} count={likeCount} variant="detail" />
   <button class="need-share-button article-share-button" type="button" data-share-networks="Weibo,Wechat,Douban,QQZone,Twitter,Pinterest,Facebook,Linkedin">● 分享:-)</button>
 </div>

@@ -561,11 +561,11 @@ body .article-heading .article-dateline .byline .byline__avatars { display: none
 .article-copyright p { margin: 0; }
 .article-copyright__text { white-space: pre-line; }
 .article-copyright a { color: #d9534f; }
-.article-social { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin: 0 0 30px; padding-top: 40px; text-align: center; }
-.article-social button { position: relative; display: inline-block; flex: 0 1 160px; width: 160px; min-height: 44px; margin: 0; padding: 8px 16px; border: 1px solid #d6d6d6; border-radius: 0; background: #5fcec0; color: #fff; font: inherit; font-size: .9375rem; cursor: pointer; }
-.article-social .article-like { background: #f78585; color: #fff; }
-.article-social .article-like:hover, .article-social .article-like[aria-pressed="true"] { background: #f17067; color: #fff; }
-.article-social .article-like:disabled { border-color: #d6d6d6; background: #e5e5e5; color: #777; cursor: default; }
+.article-actions { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin: 0 0 30px; padding-top: 40px; text-align: center; }
+.article-actions button { position: relative; display: inline-block; flex: 0 1 160px; width: 160px; min-height: 44px; margin: 0; padding: 8px 16px; border: 1px solid #d6d6d6; border-radius: 0; background: #5fcec0; color: #fff; font: inherit; font-size: .9375rem; cursor: pointer; }
+.article-actions .article-like { background: #f78585; color: #fff; }
+.article-actions .article-like:hover, .article-actions .article-like[aria-pressed="true"] { background: #f17067; color: #fff; }
+.article-actions .article-like:disabled { border-color: #d6d6d6; background: #e5e5e5; color: #777; cursor: default; }
 .article-share-button { background: #5fcec0 !important; color: #fff !important; }
 .article-nav { overflow: hidden; display: flex; justify-content: space-between; padding: 15px 20px; border: 0; border-top: 1px solid #f2f2f2; background: #fbfbfb; color: #bbb; font-size: .9375rem; }
 .article-nav a { display: block; max-width: 50%; color: var(--color-brand); }
