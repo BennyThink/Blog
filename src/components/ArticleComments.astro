@@ -2,6 +2,8 @@
 import { CommentForm } from "emdash/ui/comments";
 
 import CommentThreads from "./CommentThreads.astro";
+import { getThemeSettings } from "../theme/settings";
+import { proxyMediaUrl } from "../utils/media-proxy";
 
 interface Props {
 	collection: "posts" | "pages";
@@ -15,9 +17,30 @@ const title = isGuestbook ? "发表留言" : "评论";
 const labels = isGuestbook
 	? { comment: "留言", submit: "提交留言", published: "留言已发布", pending: "留言已提交，等待审核" }
 	: { comment: "评论", submit: "发表评论", published: "评论已发布", pending: "评论已提交，等待审核" };
+
+const { user, emdash } = Astro.locals;
+let userAvatar = user?.avatarUrl;
+if (open && user && emdash?.db) {
+	// The comment form belongs to the signed-in user, regardless of the entry's credits.
+	const locale = Astro.currentLocale;
+	let avatars = emdash.db.selectFrom("_emdash_bylines as byline")
+		.innerJoin("media", "media.id", "byline.avatar_media_id")
+		.select("media.storage_key as storageKey")
+		.where("byline.user_id", "=", user.id);
+	if (locale) {
+		avatars = avatars.orderBy(eb => eb.case().when("byline.locale", "=", locale).then(0).else(1).end());
+	}
+	const avatar = await avatars.orderBy("byline.locale").orderBy("byline.id").executeTakeFirst();
+	if (avatar?.storageKey) {
+		const { proxyUrl } = await getThemeSettings(Astro.locals, Astro.request);
+		const mediaUrl = emdash.getPublicMediaUrl?.(avatar.storageKey)
+			?? `/_emdash/api/media/file/${avatar.storageKey.split("/").map(encodeURIComponent).join("/")}`;
+		userAvatar = proxyMediaUrl(mediaUrl, proxyUrl);
+	}
+}
 ---
 
-<section id="comments" class="post-comments article-comments" aria-labelledby="comments-title" data-user-avatar={Astro.locals.user?.avatarUrl ?? ""}>
+<section id="comments" class="post-comments article-comments" aria-labelledby="comments-title" data-user-avatar={userAvatar}>
 	<h2 id="comments-title">{open ? title : "留言"}</h2>
 	{open && <CommentForm collection={collection} contentId={contentId} labels={{
 		name: "昵称", email: "邮箱", submitting: "正在提交…", networkError: "网络错误，请稍后重试。", ...labels
