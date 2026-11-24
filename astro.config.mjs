@@ -11,7 +11,7 @@ const themePluginCard = {
 	name: "dmesg-theme-plugin-card",
 	enforce: "pre",
 	transform(code, id) {
-		if (!id.endsWith("/@emdash-cms/admin/dist/index.js")) return;
+		if (!/\/@emdash-cms\/admin\/dist\/App-[\w-]+\.js$/.test(id)) return;
 
 		// EmDash uses the same metadata for its shortcut buttons, sidebar, and settings API.
 		// Change only the two card actions so the theme's own settings page remains registered.
@@ -30,7 +30,7 @@ const postsDateColumns = {
 	name: "dmesg-posts-date-columns-and-sort",
 	enforce: "pre",
 	transform(code, id) {
-		if (!id.endsWith("/@emdash-cms/admin/dist/index.js")) return;
+		if (!/\/@emdash-cms\/admin\/dist\/App-[\w-]+\.js$/.test(id)) return;
 
 		// Reuse the admin's server-side sorting and date formatting for the Posts list.
 		const publicationLabel = '_t({ id: "vaizKG", message: "Publication date" })';

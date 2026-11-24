@@ -36,6 +36,7 @@ if (!slug) {
 }
 
 const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 const { proxyUrl } = await getThemeSettings(Astro.locals, Astro.request);
 
 if (!post) {
@@ -47,8 +48,6 @@ const countView = !requestContext?.dbIsIsolated && Object.hasOwn(post.data, "vie
 	&& post.data.status === "published" && !requestContext?.preview && !requestContext?.editMode;
 if (countView && !isPrewarmRequest(Astro.request)) recordPostView(post.data.id);
 registerCachedPost(Astro.request, post.data.id, countView);
-
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 const siteOrigin = resolveSiteOrigin(Astro);
 

@@ -22,20 +22,18 @@ test('imports, system writes, existing published posts and disabled notification
   const ctx = context(); await before(fresh, ctx); assert.equal(ctx.state.size, 0);
 });
 test('first human publish sends once, with mock transport only; repeated publish does not resend', async () => {
-  const ctx = context({ telegramEnabled: true });
-  const previous = { fetch: globalThis.fetch, token: process.env.TELEGRAM_BOT_TOKEN, chat: process.env.TELEGRAM_CHAT_ID, site: process.env.EMDASH_SITE_URL };
+  const ctx = context({ telegramEnabled: true, telegramBotToken: 'test-token', telegramChannelId: 'test-chat' });
+  ctx.site = { url: 'https://example.test' };
   const sent = [];
-  process.env.TELEGRAM_BOT_TOKEN = 'test-token'; process.env.TELEGRAM_CHAT_ID = 'test-chat'; process.env.EMDASH_SITE_URL = 'https://example.test';
-  globalThis.fetch = async (_url, options) => { sent.push(JSON.parse(options.body)); return Response.json({ ok: true }); };
-  try {
-    await before(fresh, ctx); await after(fresh, ctx); await after(fresh, ctx);
-    await before(fresh, ctx); await after(fresh, ctx);
-    assert.equal(sent.length, 1); assert.match(sent[0].text, /https:\/\/example.test\/new-post.html/);
-    assert.equal(ctx.state.get('notified:new-post'), 'sent');
-  } finally {
-    globalThis.fetch = previous.fetch;
-    for (const [key, value] of [['TELEGRAM_BOT_TOKEN', previous.token], ['TELEGRAM_CHAT_ID', previous.chat], ['EMDASH_SITE_URL', previous.site]]) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
-  }
+  ctx.http = { fetch: async (url, options) => {
+    if (url.endsWith('/sendMessage')) sent.push(JSON.parse(options.body));
+    return Response.json({ ok: true });
+  } };
+  await before(fresh, ctx); await after(fresh, ctx); await after(fresh, ctx);
+  const published = { ...fresh, content: { ...fresh.content, publishedAt: '2026-11-24T00:00:00Z' } };
+  await before(published, ctx); await after(published, ctx);
+  assert.equal(sent.length, 1); assert.match(sent[0].text, /https:\/\/example.test\/new-post.html/);
+  assert.equal(ctx.state.get('eligible:new-post'), undefined);
 });
 test('public settings are allowlisted and exclude HTML, blacklists and credentials', async () => {
   const ctx = context({ searchPlaceholder: '查找', headCode: '<script>secret()</script>', blockedEmails: 'private@example.test', TELEGRAM_BOT_TOKEN: 'secret' });

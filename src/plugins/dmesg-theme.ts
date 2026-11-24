@@ -254,7 +254,7 @@ export function createPlugin() {
       "content:afterPublish": { timeout: 10000, errorPolicy: "continue", handler: async (event, ctx) => {
         if (event.collection !== "posts") return;
         invalidatePageCache();
-        if (event.content.slug) queuePostPrewarm(event.content.slug);
+        if (typeof event.content.slug === "string" && event.content.slug) queuePostPrewarm(event.content.slug);
         const id = String(event.content.id);
         if (!(await ctx.kv.get(`eligible:${id}`))) return;
         await ctx.kv.delete(`eligible:${id}`);
