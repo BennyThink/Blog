@@ -118,12 +118,25 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
   const body = await response.arrayBuffer();
   const rendered = new Response(body, { headers, statusText: response.statusText });
   const budget = settings.pageCacheSizeMiB * 1024 * 1024;
-  if (body.byteLength === 0 || body.byteLength > budget || generation !== renderGeneration || request.signal.aborted) {
+  if (body.byteLength === 0 || generation !== renderGeneration || request.signal.aborted) {
     return withCacheHeader(rendered, "BYPASS", prewarm);
   }
 
   const previous = pages.get(key);
-  if (previous) removePage(key, previous);
+  if (prewarm && retainedBytes - (previous?.body.byteLength ?? 0) + body.byteLength > budget) {
+    const now = Date.now();
+    for (const [expiredKey, expired] of pages) {
+      if (expired.expiresAt <= now) removePage(expiredKey, expired);
+    }
+    const replacedBytes = pages.get(key)?.body.byteLength ?? 0;
+    if (retainedBytes - replacedBytes + body.byteLength > budget) {
+      rendered.headers.set("X-Dmesg-Prewarm-Capacity", "full");
+      return withCacheHeader(rendered, "BYPASS", prewarm);
+    }
+  }
+  if (body.byteLength > budget) return withCacheHeader(rendered, "BYPASS", prewarm);
+  const replaced = pages.get(key);
+  if (replaced) removePage(key, replaced);
   pages.set(key, {
     body,
     headers: new Headers(headers),

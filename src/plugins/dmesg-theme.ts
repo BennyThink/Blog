@@ -172,7 +172,7 @@ export function createPlugin() {
       "content:afterSave": async ({ collection, content }) => {
         if (collection !== "posts") return;
         invalidatePageCache();
-        if (content.status === "published") queuePostPrewarm();
+        if (content.status === "published" && typeof content.slug === "string") queuePostPrewarm(content.slug);
       },
       "content:afterDelete": async ({ collection }) => { if (collection === "posts") invalidatePageCache(); },
       "content:afterUnpublish": async ({ collection }) => { if (collection === "posts") invalidatePageCache(); },
@@ -254,7 +254,7 @@ export function createPlugin() {
       "content:afterPublish": { timeout: 10000, errorPolicy: "continue", handler: async (event, ctx) => {
         if (event.collection !== "posts") return;
         invalidatePageCache();
-        queuePostPrewarm();
+        if (event.content.slug) queuePostPrewarm(event.content.slug);
         const id = String(event.content.id);
         if (!(await ctx.kv.get(`eligible:${id}`))) return;
         await ctx.kv.delete(`eligible:${id}`);

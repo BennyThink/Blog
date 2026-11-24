@@ -264,11 +264,11 @@ function PageCacheStatus() {
         {starting || prewarmRunning ? "预缓存中…" : "立即预缓存"}
       </button>
     </div>
-    <p>提前生成首页和最新 20 篇文章，访客打开时更快。</p>
+    <p>预缓存首页和全部已发布文章。发布或更新后触发时，只预缓存首页和本次变动的文章。</p>
     {(prewarmError || prewarm?.error) && <p role="alert">{prewarmError || prewarm?.error}</p>}
     {!prewarmRunning && !starting && !prewarm?.error && prewarm?.lastResult && <p role="status">
       {prewarm.lastResult.disabled ? "请先启用页面缓存。" : prewarm.lastResult.cancelled ? "预缓存已取消。"
-        : `已预缓存 ${prewarm.lastResult.completed} 页${prewarm.lastResult.failed ? `，失败 ${prewarm.lastResult.failed} 页` : ""}。`}
+        : `已预缓存 ${prewarm.lastResult.completed} 页${prewarm.lastResult.failed ? `，失败 ${prewarm.lastResult.failed} 页` : ""}${prewarm.lastResult.capacityReached ? "，缓存容量已满，本轮已停止" : ""}。`}
     </p>}
     {feedback && <p role={feedback.error ? "alert" : "status"}>{feedback.text}</p>}
   </section>;
