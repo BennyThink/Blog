@@ -108,7 +108,7 @@ const year = new Date().getFullYear();
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<link rel="icon" href="/favicon.ico" type="image/x-icon" />
+		{!settingsResult.data?.favicon?.url && <link rel="icon" href="/favicon.ico" type="image/x-icon" />}
 		<Font cssVariable="--font-body" preload />
 		<Font cssVariable="--font-mono" />
 		<title>{fullTitle}</title>

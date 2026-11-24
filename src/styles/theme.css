@@ -559,6 +559,7 @@ body .article-heading .article-dateline .byline .byline__avatars { display: none
 .article-comments .ec-comment-form-status { margin-top: 10px; }
 .article-copyright { margin: 20px 12px 0; padding: 10px 14px; border: 1px solid #8aa9d2; border-radius: 4px; background: #fbf8e8; box-shadow: none; color: #887755; font-size: 14px; line-height: 1.7; text-align: center; }
 .article-copyright p { margin: 0; }
+.article-copyright__text { white-space: pre-line; }
 .article-copyright a { color: #d9534f; }
 .article-social { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin: 0 0 30px; padding-top: 40px; text-align: center; }
 .article-social button { position: relative; display: inline-block; flex: 0 1 160px; width: 160px; min-height: 44px; margin: 0; padding: 8px 16px; border: 1px solid #d6d6d6; border-radius: 0; background: #5fcec0; color: #fff; font: inherit; font-size: .9375rem; cursor: pointer; }

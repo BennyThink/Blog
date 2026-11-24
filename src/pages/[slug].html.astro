@@ -93,10 +93,10 @@ const bylines = post.data.bylines ?? [];
 // no extra query needed.
 const tags = post.data.terms?.tag ?? [];
 const categories = post.data.terms?.category ?? [];
-const author = bylines[0]?.byline;
+const author = bylines[0]?.byline ?? post.data.byline;
 const authorName = author?.displayName ?? "本站作者";
 const commentCount = await getCommentCount("posts", post.data.id);
-const authorHref = author?.slug ? `/author/${encodeURIComponent(author.slug)}` : "/about-me";
+const authorHref = author?.slug ? `/author/${encodeURIComponent(author.slug)}` : undefined;
 const wordCount = getContentCharacterCount(post.data.content);
 const formatAge = (date: Date) => {
 	const years = Math.floor((Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
@@ -189,7 +189,7 @@ const hasHeadings = (post.data.content ?? []).some(
             <h1 {...post.edit.title}>{post.data.title}</h1>
             <div class="article-dateline article-meta">
               {categories[0] && <span id="mute-category" class="muted"><ArticleIcon name="category" /><a href={`/${categories[0].slug}`}> {categories[0].label}</a></span>}
-              <span class="muted"><ArticleIcon name="user" /> <a href={authorHref}>{authorName}</a></span>
+              <span class="muted"><ArticleIcon name="user" /> {authorHref ? <a href={authorHref}>{authorName}</a> : authorName}</span>
               {publishedAt && <time class="muted" datetime={publishedAt.toISOString()}><ArticleIcon name="clock" /> {formatAge(publishedAt)} ({formatDate(publishedAt, "long")})</time>}
               <span class="muted"><ArticleIcon name="eye" /> {post.data.views ?? 0} 次浏览</span>
               <span class="muted"><ArticleIcon name="words" /> {wordCount} 字</span>
@@ -214,7 +214,7 @@ const hasHeadings = (post.data.content ?? []).some(
               {articlePage < articlePages.length && <a class="fenye__next" href={pageHref(articlePage + 1)}><span>下一页</span></a>}
             </nav>}
             {tags.length > 0 && <ul class="chips article-tags" aria-label="文章标签">{tags.map(term => <li><a class="chip" href={`/tag/${term.slug}`}>{term.label}</a></li>)}</ul>}
-            <ArticleExtras postId={post.data.id} likeCount={post.data.bigfa_ding} bylines={bylines} canonicalUrl={seo.canonical ?? Astro.url.href} recommendations={recommendations} previous={previous ? {title: previous.data.title, href: postPath(previous.id)} : undefined} next={next ? {title: next.data.title, href: postPath(next.id)} : undefined} />
+            <ArticleExtras postId={post.data.id} likeCount={post.data.bigfa_ding} author={author} authorArchiveUrl={authorHref} canonicalUrl={seo.canonical ?? Astro.url.href} recommendations={recommendations} previous={previous ? {title: previous.data.title, href: postPath(previous.id)} : undefined} next={next ? {title: next.data.title, href: postPath(next.id)} : undefined} />
             <ArticleComments collection="posts" contentId={post.data.id} />
           </div>
         </div>
