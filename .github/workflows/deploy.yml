@@ -51,4 +51,4 @@ jobs:
           username: root
           key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           script: |
-            cd /home/emdash && docker compose pull && docker compose up -d
+            cd /home/Blog && docker compose pull && docker compose up -d
