@@ -41,6 +41,8 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.image.outputs.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
           build-args: |
             EMDASH_SITE_URL=https://dmesg.app/
 
