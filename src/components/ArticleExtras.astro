@@ -27,7 +27,7 @@ const fallbackAvatar = (key: string) => {
 };
 const avatar = author?.avatarStorageKey
   ? proxyMediaUrl(Astro.locals.emdash?.getPublicMediaUrl?.(author.avatarStorageKey) ?? `/_emdash/api/media/file/${author.avatarStorageKey.split("/").map(encodeURIComponent).join("/")}`, proxyUrl)
-  : displayName === "Benny小土豆" ? "/theme/author-avatar.png" : fallbackAvatar(author?.slug ?? displayName);
+  : fallbackAvatar(author?.slug ?? displayName);
 const profileUrl = author?.websiteUrl ?? "/about-me";
 ---
 
@@ -44,7 +44,7 @@ const profileUrl = author?.websiteUrl ?? "/about-me";
 </nav>
 <section class="article-authors" aria-labelledby="author-card-title">
   <img class="article-author-avatar" src={avatar} alt="" loading="lazy" />
-  <div><h2 id="author-card-title">关于作者：<a href={profileUrl}>{displayName}</a></h2>{biography ? <p>{biography}</p> : displayName === "Benny小土豆" && <p>If you have any further questions, feel free to <a href="/contact">contact me</a> in English or Chinese.</p>}<p class="article-author-links"><a href={profileUrl}>⌂ 作者主页</a></p></div>
+  <div><h2 id="author-card-title">关于作者：<a href={profileUrl}>{displayName}</a></h2>{biography && <p>{biography}</p>}<p class="article-author-links"><a href={profileUrl}>⌂ 作者主页</a></p></div>
 </section>
 <section class="article-random" aria-label="你可能喜欢">
   {recommendations.length > 0 ? <ul>{recommendations.map(({post, href}) => {
