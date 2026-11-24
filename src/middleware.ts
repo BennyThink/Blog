@@ -109,6 +109,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     type: "http_access",
     timestamp: new Date().toISOString(),
     clientIp,
+    userAgent: context.request.headers.get("user-agent") ?? "unknown",
     method: context.request.method,
     path: context.url.pathname,
     status: response.status,

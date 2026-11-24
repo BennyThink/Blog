@@ -143,8 +143,19 @@ export function createPlugin() {
 
           // One durable vote per browser identity and post, even if the browser marker is cleared.
           const voteId = createHash("sha256").update(`${postId}:${browserId}`).digest("hex");
-          const result = await route.storage.likes.compareAndSet(voteId, null, { postId });
-          const count = await route.storage.likes.count({ postId });
+          let result: { applied: boolean };
+          let count: number;
+          try {
+            result = await route.storage.likes.compareAndSet(voteId, null, { postId });
+            count = await route.storage.likes.count({ postId });
+          } catch (error) {
+            route.log.error("主题点赞数据读写失败。", {
+              postId,
+              operation: "save_or_count_like",
+              message: error instanceof Error ? error.message : "unknown",
+            });
+            return { ok: false, error: "LIKE_STORAGE_FAILED" };
+          }
           return { ok: true, liked: result.applied, count };
         },
       },
@@ -230,8 +241,12 @@ export function createPlugin() {
           const verdict = (await response.text()).trim().toLowerCase();
           if (verdict === "true") return false;
           if (verdict !== "false") ctx.log.warn("Akismet 返回无法识别的结果，评论继续按站点现有规则处理。", { status: response.status });
-        } catch {
-          ctx.log.warn("Akismet 请求失败，评论继续按站点现有规则处理。");
+        } catch (error) {
+          ctx.log.warn("Akismet 请求失败，评论继续按站点现有规则处理。", {
+            collection: event.comment.collection,
+            contentId: event.comment.contentId,
+            message: error instanceof Error ? error.message : "unknown",
+          });
         }
       },
       "content:beforeSchedule": async (event, ctx) => {
@@ -267,7 +282,8 @@ export function createPlugin() {
         const url = new URL(`/${encodeURIComponent(String(event.content.slug))}.html`, ctx.site.url).href;
         try {
           await telegramApi(ctx, token, "sendMessage", { chat_id: chatId, text: `新的博文《${data.title ?? ""}》发布了\n${url}` });
-        } catch { ctx.log.error("Telegram 文章通知发送失败。", { contentId: id }); }
+          ctx.log.info("Telegram 文章通知发送成功。", { contentId: id });
+        } catch (error) { ctx.log.error("Telegram 文章通知发送失败。", { contentId: id, message: error instanceof Error ? error.message : "unknown" }); }
       } },
       "comment:afterModerate": async ({ comment }) => {
         if (comment.collection === "posts") invalidateCachedPosts([comment.contentId]);
@@ -294,7 +310,8 @@ export function createPlugin() {
               slug: event.content.slug,
             } satisfies TelegramCommentMapping);
           }
-        } catch { ctx.log.error("Telegram 评论私信发送失败。", { commentId: event.comment.id }); }
+          ctx.log.info("Telegram 评论私信发送成功。", { commentId: event.comment.id });
+        } catch (error) { ctx.log.error("Telegram 评论私信发送失败。", { commentId: event.comment.id, message: error instanceof Error ? error.message : "unknown" }); }
       },
     },
   });
@@ -340,7 +357,7 @@ async function telegramApi(ctx: PluginContext, token: string, method: string, pa
     body: JSON.stringify(payload),
   });
   const result = await response.json() as { ok?: boolean; result?: unknown };
-  if (!response.ok || !result.ok) throw new Error("Telegram request failed");
+  if (!response.ok || !result.ok) throw new Error(`Telegram request failed (HTTP ${response.status})`);
   return result.result;
 }
 

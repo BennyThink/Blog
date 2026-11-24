@@ -16,6 +16,10 @@ type WarmSettings = Pick<ThemeSettings, "pageCacheEnabled" | "pageCachePrewarm" 
 interface WarmPlan extends WarmSettings { paths: string[] }
 interface WarmResult { completed: number; failed: number; capacityReached?: boolean; disabled?: boolean; cancelled?: boolean }
 
+function logPrewarm(event: string, details: Record<string, unknown> = {}) {
+  console.info(JSON.stringify({ type: "page_prewarm", event, timestamp: new Date().toISOString(), ...details }));
+}
+
 let active: { controller: AbortController; result: Promise<WarmResult>; all: boolean } | undefined;
 let lastResult: (WarmResult & { finishedAt: string }) | undefined;
 let lastError: string | undefined;
@@ -81,23 +85,37 @@ async function loadPlan(signal?: AbortSignal, all = false): Promise<WarmPlan> {
 async function warmPages(signal: AbortSignal, host?: string, slugs?: string[]): Promise<WarmResult> {
   const plan = await loadPlan(signal, !slugs);
   const result = { completed: 0, failed: 0 };
-  if (!plan.pageCacheEnabled) return { ...result, disabled: true };
+  const paths = slugs ? ["/", ...slugs.map(postPath)] : plan.paths;
+  const startedAt = Date.now();
+  logPrewarm("started", { scope: slugs ? "updated_posts" : "all", total: paths.length });
+  if (!plan.pageCacheEnabled) {
+    logPrewarm("finished", { ...result, disabled: true, total: paths.length, durationMs: Date.now() - startedAt });
+    return { ...result, disabled: true };
+  }
 
-  for (const path of slugs ? ["/", ...slugs.map(postPath)] : plan.paths) {
+  for (const [index, path] of paths.entries()) {
     if (signal.aborted) break;
+    let succeeded = false;
     try {
       const response = await localRequest(path, signal, host);
       const status = response.headers["x-emdash-cache"];
       response.resume();
       await finished(response, { cleanup: true });
-      if (response.headers["x-dmesg-prewarm-capacity"] === "full") return { ...result, capacityReached: true };
-      if (response.statusCode === 200 && (status === "HIT" || status === "MISS")) result.completed++;
+      if (response.headers["x-dmesg-prewarm-capacity"] === "full") {
+        const summary = { ...result, capacityReached: true };
+        logPrewarm("finished", { ...summary, total: paths.length, durationMs: Date.now() - startedAt });
+        return summary;
+      }
+      if (response.statusCode === 200 && (status === "HIT" || status === "MISS")) { result.completed++; succeeded = true; }
       else result.failed++;
     } catch {
       if (!signal.aborted) result.failed++;
     }
+    logPrewarm("progress", { completed: result.completed, failed: result.failed, current: index + 1, total: paths.length, path, ok: succeeded });
   }
-  return { ...result, cancelled: signal.aborted };
+  const summary = { ...result, cancelled: signal.aborted };
+  logPrewarm("finished", { ...summary, total: paths.length, durationMs: Date.now() - startedAt });
+  return summary;
 }
 
 export function runPagePrewarm(host?: string, slugs?: string[]): Promise<WarmResult> {
@@ -113,6 +131,7 @@ export function runPagePrewarm(host?: string, slugs?: string[]): Promise<WarmRes
   }).catch(error => {
     if (controller.signal.aborted) return { completed: 0, failed: 0, cancelled: true };
     lastError = error instanceof Error ? error.message : "预缓存失败。";
+    logPrewarm("failed", { message: lastError });
     throw error;
   }).finally(() => {
     active = undefined;
