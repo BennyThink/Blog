@@ -86,6 +86,16 @@ const postsDateColumns = {
 			}
 			code = code.replace(before, () => after);
 		}
+		// Keep the legacy fields in the schema and database, but hide their
+		// controls in the content editor. EmDash marks each field wrapper with
+		// data-field=<slug>.
+		code = `if (typeof document !== "undefined" && !document.getElementById("dmesg-hidden-content-fields")) {
+	const style = document.createElement("style");
+	style.id = "dmesg-hidden-content-fields";
+	style.textContent = '[data-field="views"], [data-field="bigfa_ding"] { display: none !important; }';
+	document.head.appendChild(style);
+}
+${code}`;
 		// Match the existing date label in both the table header and sort menu.
 		const dateColumnLabels = /(field: dateSortField,\s+(?:sort,\s+onSortChange,\s+)?label: )_t\(\{\s+id: "mYGY3B",\s+message: "Date"\s+\}\)/g;
 		if ([...code.matchAll(dateColumnLabels)].length !== 2) {

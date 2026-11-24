@@ -33,11 +33,6 @@ export interface Post {
   excerpt?: string;
   views?: number;
   bigfa_ding?: number;
-  classic_editor_remember?: string;
-  git_baidu_submit?: number;
-  baidu_submit?: number;
-  git_weibo_sync?: number;
-  enclosure?: string;
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
