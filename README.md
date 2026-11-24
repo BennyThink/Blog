@@ -63,4 +63,7 @@ npm run verify:docker   # 验证 Docker 部署和持久化
 
 ## 许可
 
-仓库根目录的 `LICENSE` 来自 EmDash 官方模板；部分随附资源和移植文件有各自的来源及许可说明。再分发前请阅读对应文件中的声明，并确认所需的署名和许可条件。
+本仓库的 EmDash 站点代码以 [GNU GPL v2](LICENSE) 发布。
+项目基于 EmDash 官方博客模板，并参考及移植了云落的 WordPressGit 主题。
+
+上游代码及随附素材的来源、版权和许可见[第三方资源说明](public/vendor/README.md)。博客文章和照片的授权以各自的声明为准。

@@ -14,6 +14,8 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=4321
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/LICENSE ./LICENSE
+COPY --from=builder /app/LICENSES ./LICENSES
 COPY --from=builder /app/seed ./seed
 COPY scripts/container-entrypoint.sh /usr/local/bin/emdash-entrypoint
 COPY scripts/migrate-post-urls.mjs ./scripts/migrate-post-urls.mjs

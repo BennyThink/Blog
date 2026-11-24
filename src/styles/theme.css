@@ -1,4 +1,6 @@
-/* WordPressGit visual character adapted to the framed EmDash reading layout. */
+/* WordPressGit visual design by 云落, based on yusi.
+ * Adapted for the EmDash layout by BennyThink, 2026-11-21.
+ */
 :root {
   --color-brand: light-dark(#348363, #7ac7a4);
   --color-brand-hover: light-dark(#236448, #a3ddc2);
