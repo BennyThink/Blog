@@ -40,7 +40,7 @@ const publishedAt = post.data.publishedAt ?? null;
 const readingTime = formatReadingTime(getReadingTime(post.data.content));
 const bylines = post.data.bylines ?? [];
 const author = bylines[0]?.byline ?? post.data.byline;
-const authorHref = author?.slug === "benny" ? "/about-me" : `${href}#author-card-title`;
+const authorHref = author?.slug ? `/author/${encodeURIComponent(author.slug)}` : `${href}#author-card-title`;
 const commentCount = variant === "row" ? await getCommentCount("posts", post.data.id) : 0;
 const categories = post.data.terms?.category ?? [];
 const visibleTags = tags.slice(0, variant === "card" ? 2 : 3);

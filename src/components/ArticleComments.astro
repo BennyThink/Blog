@@ -17,7 +17,7 @@ const labels = isGuestbook
 	: { comment: "评论", submit: "发表评论", published: "评论已发布", pending: "评论已提交，等待审核" };
 ---
 
-<section id="comments" class="post-comments article-comments" aria-labelledby="comments-title">
+<section id="comments" class="post-comments article-comments" aria-labelledby="comments-title" data-user-avatar={Astro.locals.user?.avatarUrl ?? ""}>
 	<h2 id="comments-title">{open ? title : "留言"}</h2>
 	{open && <CommentForm collection={collection} contentId={contentId} labels={{
 		name: "昵称", email: "邮箱", submitting: "正在提交…", networkError: "网络错误，请稍后重试。", ...labels
@@ -54,7 +54,7 @@ const labels = isGuestbook
 			title.className = "comt-title";
 			const avatar = new Image();
 			avatar.className = "comt-avatar";
-			avatar.src = "/theme/author-avatar.png";
+			avatar.src = section.dataset.userAvatar || "/theme/avatars/1.png";
 			avatar.alt = "";
 			const author = document.createElement("div");
 			author.className = "comt-author";
