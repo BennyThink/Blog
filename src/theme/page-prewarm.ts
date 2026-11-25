@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { request as httpRequest, type IncomingMessage } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { finished } from "node:stream/promises";
@@ -25,6 +25,7 @@ let lastResult: (WarmResult & { finishedAt: string }) | undefined;
 let lastError: string | undefined;
 let currentSettings: WarmSettings | undefined;
 let poll: ReturnType<typeof setInterval> | undefined;
+let pendingStartup: ReturnType<typeof setTimeout> | undefined;
 let pendingUpdate: ReturnType<typeof setTimeout> | undefined;
 const updatedPosts = new Set<string>();
 let initialized = false;
@@ -144,7 +145,13 @@ export function getPagePrewarmStatus() {
   return { running: Boolean(active), lastResult, error: lastError };
 }
 
+function cancelStartupPrewarm() {
+  clearTimeout(pendingStartup);
+  pendingStartup = undefined;
+}
+
 export function cancelPagePrewarm() {
+  cancelStartupPrewarm();
   active?.controller.abort();
   if (pendingUpdate) clearTimeout(pendingUpdate);
   pendingUpdate = undefined;
@@ -167,9 +174,17 @@ function checkDailyPrewarm() {
   backgroundWarm();
 }
 
+function shouldPrewarmOnStartup(settings?: WarmSettings) {
+  return settings?.pageCacheEnabled
+    && (settings.pageCachePrewarm === "post" || settings.pageCachePrewarm === "daily");
+}
+
 export async function refreshPrewarmSchedule(settings?: WarmSettings) {
   if (!process.env.DMESG_PREWARM_ORIGIN) return;
   currentSettings = settings ?? await loadPlan();
+  if (!shouldPrewarmOnStartup(currentSettings)) {
+    cancelStartupPrewarm();
+  }
   if (poll) clearInterval(poll);
   poll = undefined;
   if (!currentSettings.pageCacheEnabled || !isPrewarmTime(currentSettings.pageCachePrewarmTime)) return;
@@ -183,7 +198,11 @@ export function initializePagePrewarm() {
   if (initialized || !process.env.DMESG_PREWARM_ORIGIN) return;
   initialized = true;
   void refreshPrewarmSchedule().then(() => {
-    if (currentSettings?.pageCacheEnabled && currentSettings.pageCachePrewarm === "startup") backgroundWarm();
+    if (!shouldPrewarmOnStartup(currentSettings)) return;
+    pendingStartup = setTimeout(() => {
+      pendingStartup = undefined;
+      backgroundWarm();
+    }, randomInt(10, 101) * 1000).unref();
   }).catch(error => {
     initialized = false;
     console.warn("Could not read page prewarm settings", error instanceof Error ? error.message : error);

@@ -33,9 +33,8 @@ export const settingsSchema: Record<string, SettingField> = {
     type: "number", label: "页面缓存有效期（秒）", default: publicDefaults.pageCachePostTtlSeconds, min: 1,
     description: "适用于首页和文章详情页，到期后重新生成。",
   },
-  pageCachePrewarm: { type: "select", label: "自动预缓存", default: publicDefaults.pageCachePrewarm, options: [
+  pageCachePrewarm: { type: "select", label: "自动预缓存", description: "页面缓存和自动预缓存都开启时，服务启动后会随机等待 10–100 秒，再预缓存首页和全部已发布文章。", default: publicDefaults.pageCachePrewarm, options: [
     { value: "off", label: "关闭" },
-    { value: "startup", label: "网站启动后" },
     { value: "post", label: "文章发布或更新后" },
     { value: "daily", label: "每天固定时间" },
   ] },

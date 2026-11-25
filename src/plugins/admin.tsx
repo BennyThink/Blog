@@ -82,7 +82,7 @@ function SettingsField({ name, field, value, secretSet, onChange }: {
       </>;
       break;
     case "select":
-      input = <select id={id} value={text} onChange={(event) => onChange(event.currentTarget.value)}>
+      input = <select id={id} value={name === "pageCachePrewarm" && text === "startup" ? "off" : text} onChange={(event) => onChange(event.currentTarget.value)}>
         {name !== "pageCachePrewarm" && <option value="">请选择</option>}
         {field.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>;
