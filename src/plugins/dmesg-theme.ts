@@ -7,6 +7,7 @@ import { getRequestContext } from "emdash";
 import { readPublicSettings, settingsSchema } from "../theme/settings.ts";
 import { rejectsComment, type CommentRules } from "./comment-rules.ts";
 import { portableTextBlocks } from "./portable-text/config.mjs";
+import { lookupIpLocation } from "./ip-location.ts";
 
 export function createPlugin() {
   return definePlugin({
@@ -298,9 +299,11 @@ export function createPlugin() {
         if (!(await registerTelegramWebhook(ctx, token))) return;
         const postUrl = new URL(`/${encodeURIComponent(event.content.slug)}.html#comment-${encodeURIComponent(event.comment.id)}`, ctx.site.url).href;
         try {
+          const clientIp = getRequestContext()?.commentClientIp ?? null;
+          const location = await lookupIpLocation(clientIp);
           const sent = await telegramApi(ctx, token, "sendMessage", {
             chat_id: ownerId,
-            text: `新评论 · ${event.content.title ?? "文章"}\n${event.comment.authorName}：${event.comment.body}\n${postUrl}\n\n直接回复此消息即可在网站评论。`,
+            text: `新评论 · ${event.content.title ?? "文章"}\n${event.comment.authorName}：${event.comment.body}\nIP：${clientIp ?? "未知"}\n位置：${location}\n${postUrl}\n\n直接回复此消息即可在网站评论。`,
           }) as { message_id?: number; chat?: { id?: number } };
           if (sent.message_id !== undefined) {
             await ctx.kv.set(`telegram:comment:${sent.chat?.id ?? ownerId}:${sent.message_id}`, {

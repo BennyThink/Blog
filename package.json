@@ -25,6 +25,7 @@
     "@astrojs/react": "^7.0.0",
     "astro": "^7.3.2",
     "emdash": "1.6.0",
+    "ip2region.js": "^3.1.8",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },

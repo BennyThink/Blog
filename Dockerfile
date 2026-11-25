@@ -7,6 +7,9 @@ FROM dependencies AS builder
 COPY . .
 ARG EMDASH_SITE_URL=http://localhost:4321
 ENV EMDASH_SITE_URL=$EMDASH_SITE_URL ASTRO_TELEMETRY_DISABLED=1
+RUN mkdir -p data/ip2region \
+    && curl -fsSL https://raw.githubusercontent.com/lionsoul2014/ip2region/c6fabeda4715a7400f36ad9091eea662204b1937/data/ip2region_v4.xdb -o data/ip2region/ip2region_v4.xdb \
+    && curl -fsSL https://raw.githubusercontent.com/lionsoul2014/ip2region/d0eb5b3ea98589c8b6ad77e9e7d5fd5afe600971/data/ip2region_v6.xdb -o data/ip2region/ip2region_v6.xdb
 RUN npm run build
 
 FROM dependencies AS production-dependencies
@@ -20,6 +23,7 @@ COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/LICENSE ./LICENSE
 COPY --from=builder /app/LICENSES ./LICENSES
+COPY --from=builder /app/data/ip2region ./data/ip2region
 COPY --from=builder /app/seed ./seed
 COPY scripts/container-entrypoint.sh /usr/local/bin/emdash-entrypoint
 COPY scripts/migrate-post-urls.mjs ./scripts/migrate-post-urls.mjs

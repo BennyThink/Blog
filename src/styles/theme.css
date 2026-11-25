@@ -16,6 +16,19 @@
   --shadow-card: 0 1px 3px var(--color-shadow);
   --shadow-card-hover: 0 3px 14px var(--color-shadow);
 }
+
+body::before,
+.band::before,
+.band::after,
+header.site-header.site-header::before,
+header.site-header.site-header::after {
+  content: none;
+}
+
+.band {
+  border-top: 0;
+}
+
 a { text-underline-offset: .2em; }
 .site-footer.site-footer { border-top: 1px solid #83b99e; background-color: #26332f; background-image: linear-gradient(rgb(38 51 47 / 88%), rgb(38 51 47 / 88%)), url("/theme/footbg.jpg"); background-repeat: repeat; color: #f5f7f6; text-shadow: 0 1px 1px rgb(0 0 0 / 25%); }
 .site-footer .site-footer__meta, .site-footer .site-footer__meta a { color: #f5f7f6 !important; text-decoration: none; text-underline-offset: .2em; text-decoration-thickness: 1px; }

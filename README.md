@@ -23,6 +23,7 @@
 
 ```sh
 npm ci
+mkdir -p data/sqlite
 npm run dev
 ```
 
