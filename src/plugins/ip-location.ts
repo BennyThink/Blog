@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { IPv4, IPv6, newWithFileOnly, type Searcher } from "ip2region.js";
 
-const databaseDirectory = fileURLToPath(new URL("../../data/ip2region/", import.meta.url));
+const databaseDirectory = process.env.IP2REGION_DATABASE_DIR || fileURLToPath(new URL("../../data/ip2region/", import.meta.url));
 const searchers = new Map<number, Searcher>();
 
 /** Look up an IP using the bundled local ip2region xdb files. */
