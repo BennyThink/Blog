@@ -29,6 +29,8 @@ npm run dev
 
 打开 <http://localhost:4321/> 查看站点，打开 <http://localhost:4321/_emdash/admin> 进入 EmDash 管理界面。首次启动时根据管理界面的提示完成初始化。
 
+Docker 镜像把 ip2region 数据库放在默认的 `/opt/ip2region`。直接在本机运行时，如需查询 IP 归属地，下载 IPv4 和 IPv6 的 `.xdb` 文件，并用 `IP2REGION_DATABASE_DIR` 指定实际存放目录。
+
 ## Docker 部署
 
 首次部署时生成本地密钥，再通过 Compose 从仓库中的 `Dockerfile` 构建并启动服务：

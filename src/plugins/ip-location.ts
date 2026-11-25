@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { IPv4, IPv6, newWithFileOnly, type Searcher } from "ip2region.js";
 
-const databaseDirectory = process.env.IP2REGION_DATABASE_DIR || resolve("data/ip2region");
+const databaseDirectory = process.env.IP2REGION_DATABASE_DIR || "/opt/ip2region";
 const searchers = new Map<number, Searcher>();
 
 /** Look up an IP using the bundled local ip2region xdb files. */

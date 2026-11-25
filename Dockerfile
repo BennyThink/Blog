@@ -24,8 +24,7 @@ COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/LICENSE ./LICENSE
 COPY --from=builder /app/LICENSES ./LICENSES
-ENV IP2REGION_DATABASE_DIR=/opt/ip2region
-COPY --from=ip2region-data --chmod=0644 /ip2region/*.xdb /opt/ip2region/
+COPY --from=ip2region-data --chmod=0755 /ip2region/*.xdb /opt/ip2region/
 COPY --from=builder /app/seed ./seed
 COPY scripts/container-entrypoint.sh /usr/local/bin/emdash-entrypoint
 COPY scripts/migrate-post-urls.mjs ./scripts/migrate-post-urls.mjs
