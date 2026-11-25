@@ -30,7 +30,7 @@ COPY scripts/container-entrypoint.sh /usr/local/bin/emdash-entrypoint
 COPY scripts/migrate-post-urls.mjs ./scripts/migrate-post-urls.mjs
 RUN mkdir -p data/sqlite data/uploads data/sessions && chown -R node:node data \
     && chmod +x /usr/local/bin/emdash-entrypoint
-COPY scripts/start.mjs scripts/prewarm-listener.mjs ./scripts/
+COPY scripts/start.mjs scripts/prewarm-listener.mjs scripts/export-legacy.mjs ./scripts/
 COPY --from=builder /app/dist ./dist
 USER node
 EXPOSE 4321

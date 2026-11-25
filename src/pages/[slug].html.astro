@@ -20,6 +20,7 @@ import { formatDate } from "../utils/locale";
 import { getContentCharacterCount } from "../utils/reading-time";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
 import { resolveSiteOrigin } from "../utils/site-origin";
+import { isLegacyExportRequest } from "../utils/legacy-request";
 import { isPrewarmRequest } from "../theme/page-prewarm";
 import { registerCachedPost } from "../theme/page-cache";
 import { recordPostView } from "../utils/post-views";
@@ -44,7 +45,7 @@ if (!post) {
 }
 
 const requestContext = getRequestContext();
-const countView = !requestContext?.dbIsIsolated && Object.hasOwn(post.data, "views") && Astro.request.method === "GET"
+const countView = !isLegacyExportRequest(Astro) && !requestContext?.dbIsIsolated && Object.hasOwn(post.data, "views") && Astro.request.method === "GET"
 	&& post.data.status === "published" && !requestContext?.preview && !requestContext?.editMode;
 if (countView && !isPrewarmRequest(Astro.request)) recordPostView(post.data.id);
 registerCachedPost(Astro.request, post.data.id, countView);

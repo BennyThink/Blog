@@ -1,3 +1,4 @@
+import { isLegacyExportRequest } from "../utils/legacy-request.ts";
 import type { APIContext } from "astro";
 import { getRequestContext } from "emdash";
 import { isPrewarmRequest } from "./page-prewarm.ts";
@@ -77,7 +78,7 @@ export async function serveCachedPage(context: APIContext, next: () => Promise<R
   const { locals, request, url } = context;
   const home = url.pathname === "/";
   const post = context.routePattern === "/[slug].html";
-  if (!home && !post) return next();
+  if ((!home && !post) || isLegacyExportRequest(context)) return next();
 
   const prewarm = isPrewarmRequest(request);
   const scope = getRequestContext();

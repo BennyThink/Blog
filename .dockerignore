@@ -17,6 +17,7 @@
 !scripts/migrate-post-urls.mjs
 !scripts/prewarm-listener.mjs
 !scripts/start.mjs
+!scripts/export-legacy.mjs
 
 !public/
 !public/**
