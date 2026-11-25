@@ -117,6 +117,7 @@ export default defineConfig({
 	output: "server",
 	session: {
 		driver: sessionDrivers.fsLite({ base: "./data/sessions" }),
+		cookie: { maxAge: 30 * 24 * 60 * 60 },
 	},
 	adapter: node({
 		mode: "standalone",
