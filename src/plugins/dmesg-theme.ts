@@ -72,16 +72,32 @@ export function createPlugin() {
             const claim = await route.kv.compareAndSet(updateKey, null, "processing");
             if (!claim.applied) return { ok: true };
           }
+          const acknowledge = async (text: string) => {
+            try {
+              await telegramApi(route, token, "sendMessage", {
+                chat_id: message.chat!.id,
+                text,
+                ...(message.message_id ? { reply_parameters: { message_id: message.message_id } } : {}),
+              });
+            } catch {
+              route.log.warn("Telegram 回复回执发送失败。", { updateId: update.update_id });
+            }
+          };
           let completed = false;
           try {
             const mappingKey = `telegram:comment:${message.chat.id}:${message.reply_to_message.message_id}`;
             const mapping = await route.kv.get<TelegramCommentMapping>(mappingKey);
             const body = message.text?.trim();
-            if (!mapping || !body || body.startsWith("/")) { completed = true; return { ok: true }; }
+            if (!mapping || !body || body.startsWith("/")) {
+              completed = true;
+              await acknowledge(!mapping ? "未提交：找不到对应的网站评论，请回复原始评论通知。" : "未提交：请输入评论回复正文。");
+              return { ok: true };
+            }
 
             const author = await findTelegramReplyAuthor(route);
             if (!author) {
               route.log.warn("Telegram 回复未提交：没有可用的 EmDash 账号。");
+              await acknowledge("未提交：没有可用的 EmDash 账号。");
               return { ok: true };
             }
 
@@ -101,15 +117,22 @@ export function createPlugin() {
                 runtime.handlePublicCommentSubmission(mapping.collection, mapping.contentId, request, author),
               ),
             );
-            const result = await response.json() as { success?: boolean; data?: { status?: string }; error?: { code?: string } };
-            if (!response.ok || result.success === false) {
+            const result = await response.json() as { success?: boolean; data?: { id?: string; status?: string }; error?: { code?: string } };
+            if (!response.ok || result.success === false || !result.data?.id) {
               route.log.warn("Telegram 回复未能创建为站点评论。", { code: result.error?.code ?? "COMMENT_CREATE_FAILED" });
+              await acknowledge(`未提交：${result.error?.code ?? "评论接口没有返回评论 ID"}。`);
               return { ok: true };
             }
             completed = true;
+            await acknowledge(result.data.status === "approved"
+              ? "OK，回复已发布。"
+              : result.data.status === "pending"
+                ? "OK，回复已提交，等待审核。"
+                : "回复已保存，当前未公开。");
             return { ok: true };
           } catch {
             route.log.error("处理 Telegram 回复失败。", { updateId: update.update_id });
+            await acknowledge("处理回复时出错，请先确认网站上的回复状态。");
             return { ok: true };
           } finally {
             if (update.update_id !== undefined) {
@@ -171,13 +194,37 @@ export function createPlugin() {
       },
       settings: { public: true, methods: ["GET"], handler: async (ctx) => readPublicSettings(ctx.settings) },
       avatar: { public: true, methods: ["GET"], handler: async (ctx) => {
-        if ((await ctx.settings.get<boolean>("mixedAvatars")) === false) return null;
         const input = ctx.input && typeof ctx.input === "object" ? ctx.input as Record<string, unknown> : {};
         if (typeof input.id !== "string" || !/^[a-zA-Z0-9_-]{1,80}$/.test(input.id)) return null;
         const comment = await ctx.comments!.get(input.id);
         if (!comment || comment.status !== "approved") return null;
         const content = await ctx.content!.get(comment.collection, comment.contentId);
         if (!content || content.status !== "published") return null;
+        const member = await withEmDashRuntime(async ({ db }) => {
+          const account = await db.selectFrom("_emdash_comments as c")
+            .innerJoin("users as u", "u.id", "c.author_user_id")
+            .select(["u.id", "u.avatar_url"])
+            .where("c.id", "=", comment.id)
+            .executeTakeFirst();
+          if (!account) return null;
+          const profile = account.avatar_url;
+          if (profile && (/^https?:\/\//i.test(profile) || /^\/(?![\/\\])/.test(profile))) {
+            return { member: true, avatar: profile };
+          }
+          const byline = await db.selectFrom("_emdash_bylines as b")
+            .innerJoin("media as m", "m.id", "b.avatar_media_id")
+            .select("m.storage_key")
+            .where("b.user_id", "=", account.id)
+            .orderBy("b.created_at", "asc")
+            .orderBy("b.id", "asc")
+            .executeTakeFirst();
+          const avatar = byline?.storage_key
+            ? `/_emdash/api/media/file/${byline.storage_key.split("/").map(encodeURIComponent).join("/")}`
+            : null;
+          return { member: true, avatar };
+        });
+        if (member) return member;
+        if ((await ctx.settings.get<boolean>("mixedAvatars")) === false) return null;
         const email = comment.authorEmail.trim().toLowerCase();
         const hash = createHash("md5").update(email).digest("hex");
         const qqEnabled = (await ctx.settings.get<boolean>("qqAvatars")) !== false;
@@ -305,14 +352,18 @@ export function createPlugin() {
         const token = await getTelegramToken(ctx);
         const ownerId = String(await ctx.settings.get<string>("telegramOwnerId") ?? "").trim();
         if (!token || !ownerId) return;
+        if (event.comment.authorUserId && event.comment.authorUserId === (await findTelegramReplyAuthor(ctx))?.id) return;
         if (!(await registerTelegramWebhook(ctx, token))) return;
         const postUrl = new URL(`/${encodeURIComponent(event.content.slug)}.html#comment-${encodeURIComponent(event.comment.id)}`, ctx.site.url).href;
         try {
           const clientIp = getRequestContext()?.commentClientIp ?? null;
           const location = await lookupIpLocation(clientIp);
+          const content = event.content.title ? null : await ctx.content?.get(event.content.collection, event.content.id);
+          const storedTitle = content?.data.title;
+          const title = event.content.title || (typeof storedTitle === "string" && storedTitle.trim()) || event.content.slug;
           const sent = await telegramApi(ctx, token, "sendMessage", {
             chat_id: ownerId,
-            text: `新评论 · ${event.content.title ?? "文章"}\n${event.comment.authorName}：${event.comment.body}\nIP：${clientIp ?? "未知"}\n位置：${location}\n${postUrl}\n\n直接回复此消息即可在网站评论。`,
+            text: `新评论 · ${title}\n${event.comment.authorName}：${event.comment.body}\n邮箱：${event.comment.authorEmail}\nIP：${clientIp ?? "未知"}\n位置：${location}\n${postUrl}\n\n直接回复此消息即可在网站评论。`,
           }) as { message_id?: number; chat?: { id?: number } };
           if (sent.message_id !== undefined) {
             await ctx.kv.set(`telegram:comment:${sent.chat?.id ?? ownerId}:${sent.message_id}`, {

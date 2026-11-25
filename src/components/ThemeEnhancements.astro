@@ -120,6 +120,19 @@ const settings = await getThemeSettings(Astro.locals, Astro.request);
       if (!response.ok) return;
       const { data } = await response.json(); if (!data) return;
       const image = new Image(36, 36); image.alt = ""; image.className = "comment-avatar"; image.referrerPolicy = "no-referrer";
+      if (data.member) {
+        const initials = document.createElement("span");
+        initials.className = "comment-avatar";
+        initials.setAttribute("aria-hidden", "true");
+        const name = heading.querySelector(".ec-comment-author")?.textContent?.trim() || "";
+        initials.textContent = Array.from(name)[0]?.toUpperCase() || "·";
+        fallback.replaceWith(initials);
+        if (data.avatar) {
+          image.addEventListener("load", () => initials.replaceWith(image), { once: true });
+          image.src = data.avatar;
+        }
+        return;
+      }
       let stage: "qq" | "gravatar" | "fallback" = data.qq ? "qq" : "gravatar";
       image.addEventListener("load", () => fallback.replaceWith(image));
       image.addEventListener("error", () => {
