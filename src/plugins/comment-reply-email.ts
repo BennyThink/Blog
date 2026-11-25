@@ -1,7 +1,6 @@
 import type { StoredComment, PluginContext } from "emdash";
-import { withEmDashRuntime } from "emdash/middleware";
 
-import { findCommentPage } from "../utils/comment-links";
+import { findCommentPage } from "../utils/comment-links.ts";
 
 type Reply = Pick<StoredComment, "id" | "collection" | "contentId" | "parentId" | "authorName" | "authorEmail" | "body" | "status" | "moderationMetadata">;
 
@@ -75,6 +74,7 @@ export async function sendCommentReplyEmail(ctx: PluginContext, reply: Reply): P
       : content.slug;
     const path = reply.collection === "posts" ? `/${encodeURIComponent(content.slug)}.html` : "/message";
     const url = new URL(path, ctx.site.url);
+    const { withEmDashRuntime } = await import("emdash/middleware");
     const page = await withEmDashRuntime(({ db }) =>
       findCommentPage(db, reply.collection, reply.contentId, reply.id));
     if (page === null) return "邮件未发送（评论串尚未公开）";

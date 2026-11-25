@@ -4,7 +4,6 @@ import { definePlugin } from "emdash";
 import type { PluginAdminConfig, PluginContext } from "emdash";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { getRequestContext, runWithContext } from "emdash";
-import { withEmDashRuntime } from "emdash/middleware";
 import { readPublicSettings, settingsSchema } from "../theme/settings.ts";
 import { rejectsComment, type CommentRules } from "./comment-rules.ts";
 import { portableTextBlocks } from "./portable-text/config.mjs";
@@ -113,6 +112,7 @@ export function createPlugin() {
                 parentId: mapping.commentId,
               }),
             });
+            const { withEmDashRuntime } = await import("emdash/middleware");
             const response = await withEmDashRuntime(runtime =>
               runWithContext({ editMode: false, ...getRequestContext(), telegramCommentReply: true,
                 telegramReplyMessageId: message.message_id,
@@ -212,6 +212,7 @@ export function createPlugin() {
         if (!comment || comment.status !== "approved") return null;
         const content = await ctx.content!.get(comment.collection, comment.contentId);
         if (!content || content.status !== "published") return null;
+        const { withEmDashRuntime } = await import("emdash/middleware");
         const member = await withEmDashRuntime(async ({ db }) => {
           const account = await db.selectFrom("_emdash_comments as c")
             .innerJoin("users as u", "u.id", "c.author_user_id")
