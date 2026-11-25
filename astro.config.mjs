@@ -4,8 +4,14 @@ import { defineConfig, fontProviders, sessionDrivers } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 import { Features } from "lightningcss";
+import { sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { activatePrewarmListener } from "./scripts/prewarm-listener.mjs";
+
+function pluginImportPath(relativePath) {
+	// EmDash embeds these paths in generated imports, where Windows backslashes are escapes.
+	return fileURLToPath(new URL(relativePath, import.meta.url)).split(sep).join("/");
+}
 
 const themePluginCard = {
 	name: "dmesg-theme-plugin-card",
@@ -147,9 +153,9 @@ export default defineConfig({
 		emdash({
 			plugins: [{
                 id: "dmesg-theme", version: "0.1.0", format: "native",
-                entrypoint: fileURLToPath(new URL("./src/plugins/dmesg-theme.ts", import.meta.url)),
-                adminEntry: fileURLToPath(new URL("./src/plugins/admin.tsx", import.meta.url)),
-                componentsEntry: fileURLToPath(new URL("./src/plugins/portable-text/index.ts", import.meta.url)),
+                entrypoint: pluginImportPath("./src/plugins/dmesg-theme.ts"),
+                adminEntry: pluginImportPath("./src/plugins/admin.tsx"),
+                componentsEntry: pluginImportPath("./src/plugins/portable-text/index.ts"),
                 options: {},
             }],
 			database: sqlite({ url: process.env.EMDASH_DATABASE_URL || "file:./data/sqlite/emdash.db" }),
