@@ -1,4 +1,6 @@
 ---
+import { decodeHTMLStrict } from "entities";
+
 interface Props {
 	comment: {
 		id: string;
@@ -14,7 +16,8 @@ const date = comment.created_at ? new Date(comment.created_at) : null;
 const dateText = date && !Number.isNaN(date.getTime())
 	? new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Shanghai" }).format(date)
 	: null;
-const parts = comment.body.split(/(https?:\/\/[^\s<>"')\]]+)/g);
+// Decode one layer for display. Keep every segment in an escaped Astro expression.
+const parts = decodeHTMLStrict(comment.body).split(/(https?:\/\/[^\s<>"')\]]+)/g);
 ---
 
 <article class="ec-comment" id={`comment-${comment.id}`} data-comment-id={comment.id}>
@@ -23,8 +26,11 @@ const parts = comment.body.split(/(https?:\/\/[^\s<>"')\]]+)/g);
 		{comment.author_user_id && <span class="ec-comment-badge" aria-label="站点成员">✓</span>}
 		{dateText && <time class="ec-comment-date" datetime={date?.toISOString()}>{dateText}</time>}
 	</header>
-	<div class="ec-comment-body">{parts.map((part, index) => index % 2
-		? <a href={part} rel="nofollow ugc noopener" target="_blank">{part}</a>
-		: part)}</div>
+	<div class="ec-comment-body">{parts.map((part, index) => {
+		const url = index % 2 ? URL.parse(part) : null;
+		return url?.protocol === "http:" || url?.protocol === "https:"
+			? <a href={url.href} rel="nofollow ugc noopener" target="_blank">{part}</a>
+			: part;
+	})}</div>
 	<slot />
 </article>
