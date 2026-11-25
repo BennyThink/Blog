@@ -3,7 +3,8 @@ import { cancelPagePrewarm, getPagePrewarmStatus, queuePostPrewarm, runPagePrewa
 import { definePlugin } from "emdash";
 import type { PluginAdminConfig, PluginContext } from "emdash";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import { getRequestContext } from "emdash";
+import { getRequestContext, runWithContext } from "emdash";
+import { withEmDashRuntime } from "emdash/middleware";
 import { readPublicSettings, settingsSchema } from "../theme/settings.ts";
 import { rejectsComment, type CommentRules } from "./comment-rules.ts";
 import { portableTextBlocks } from "./portable-text/config.mjs";
@@ -78,20 +79,28 @@ export function createPlugin() {
             const body = message.text?.trim();
             if (!mapping || !body || body.startsWith("/")) { completed = true; return { ok: true }; }
 
-            const siteUrl = route.site.url;
-            const emailDomain = new URL(siteUrl).hostname || "localhost.local";
-            const endpoint = new URL(`/_emdash/api/comments/${encodeURIComponent(mapping.collection)}/${encodeURIComponent(mapping.contentId)}`, siteUrl);
-            const response = await fetch(endpoint, {
+            const author = await findTelegramReplyAuthor(route);
+            if (!author) {
+              route.log.warn("Telegram 回复未提交：没有可用的 EmDash 账号。");
+              return { ok: true };
+            }
+
+            const endpoint = new URL(`/_emdash/api/comments/${encodeURIComponent(mapping.collection)}/${encodeURIComponent(mapping.contentId)}`, route.site.url);
+            const request = new Request(endpoint, {
               method: "POST",
-              headers: { "Content-Type": "application/json", "Accept": "application/json" },
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                authorName: "站长",
-                authorEmail: `telegram-owner@${emailDomain}`,
+                authorName: author.name || "站长",
+                authorEmail: author.email,
                 body,
                 parentId: mapping.commentId,
               }),
-              signal: AbortSignal.timeout(10000),
             });
+            const response = await withEmDashRuntime(runtime =>
+              runWithContext({ editMode: false, ...getRequestContext(), telegramCommentReply: true }, () =>
+                runtime.handlePublicCommentSubmission(mapping.collection, mapping.contentId, request, author),
+              ),
+            );
             const result = await response.json() as { success?: boolean; data?: { status?: string }; error?: { code?: string } };
             if (!response.ok || result.success === false) {
               route.log.warn("Telegram 回复未能创建为站点评论。", { code: result.error?.code ?? "COMMENT_CREATE_FAILED" });
@@ -291,7 +300,7 @@ export function createPlugin() {
       },
       "comment:afterCreate": async (event, ctx) => {
         if (event.content.collection === "posts") invalidateCachedPosts([event.content.id]);
-        if (event.comment.status === "spam" || /^telegram-owner@/i.test(event.comment.authorEmail)) return;
+        if (getRequestContext()?.telegramCommentReply || event.comment.status === "spam" || /^telegram-owner@/i.test(event.comment.authorEmail)) return;
         if (!(await ctx.settings.get<boolean>("telegramEnabled"))) return;
         const token = await getTelegramToken(ctx);
         const ownerId = String(await ctx.settings.get<string>("telegramOwnerId") ?? "").trim();
@@ -318,6 +327,18 @@ export function createPlugin() {
       },
     },
   });
+}
+
+async function findTelegramReplyAuthor(ctx: PluginContext) {
+  if (!ctx.users) return undefined;
+  let cursor: string | undefined;
+  do {
+    const page = await ctx.users.list({ limit: 20, cursor });
+    const author = page.items.find(user => user.email.toLowerCase() !== "dev@emdash.local");
+    if (author) return author;
+    cursor = page.nextCursor;
+  } while (cursor);
+  return undefined;
 }
 
 interface TelegramCommentMapping {
