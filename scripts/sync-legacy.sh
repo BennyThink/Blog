@@ -10,11 +10,7 @@ mkdir -p "$legacy_dir"
 exec 9>"$legacy_dir/.sync.lock"
 flock -n 9 || exit 0
 
-if [[ -d "$legacy_dir/.git" || -f "$legacy_dir/.git" ]]; then
-  repo_dir=$legacy_dir
-else
-  repo_dir="$legacy_dir/bennythink.github.io"
-fi
+repo_dir="$legacy_dir/bennythink.github.io"
 if [[ ! -e "$repo_dir/.git" ]]; then
   git clone --branch master "$remote" "$repo_dir"
 fi
@@ -43,22 +39,21 @@ docker compose cp "emdash:$container_dir/site" "$stage/site"
 test -s "$stage/site/index.html"
 
 git -C "$repo_dir" pull --ff-only origin master
-archive="$repo_dir/emdash"
-if [[ -L "$archive" ]]; then
-  echo "Archive destination is a symbolic link: $archive" >&2
+if [[ -n "$(git -C "$repo_dir" ls-files --others)" ]]; then
+  echo "Found untracked files in the archive checkout: $repo_dir" >&2
   exit 1
 fi
-if [[ -n "$(git -C "$repo_dir" ls-files --others -- emdash .nojekyll)" ]]; then
-  echo "Found untracked files in the archive destination: $repo_dir" >&2
+if [[ -e "$stage/site/.git" || -L "$stage/site/.git" ]]; then
+  echo "The export contains a reserved .git path." >&2
   exit 1
 fi
-mkdir -p "$archive"
-rsync -a --delete -- "$stage/site/" "$archive/"
-# The repository contains generated HTML, including directories beginning with "_".
-touch "$repo_dir/.nojekyll"
-git -C "$repo_dir" add -f -A -- emdash .nojekyll
-if ! git -C "$repo_dir" diff --cached --quiet -- emdash .nojekyll; then
-  git -C "$repo_dir" commit -m "Update EmDash archive" -- emdash .nojekyll
+
+# GitHub Pages serves the prebuilt files, including directories beginning with "_".
+touch "$stage/site/.nojekyll"
+rsync -a --delete --exclude='/.git' -- "$stage/site/" "$repo_dir/"
+git -C "$repo_dir" add -f -A -- .
+if ! git -C "$repo_dir" diff --cached --quiet; then
+  git -C "$repo_dir" commit -m "Update EmDash archive"
 fi
 # Also retry pushing a commit left behind by a failed push.
 git -C "$repo_dir" push origin master
