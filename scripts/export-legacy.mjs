@@ -6,14 +6,15 @@ import { pipeline } from "node:stream/promises";
 import { createWriteStream } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { parseArgs } from "node:util";
-import { escapeText } from "entities";
-import { parse, serialize } from "parse5";
+import { escapeAttribute, escapeText } from "entities";
+import { defaultTreeAdapter, parse, parseFragment, serialize } from "parse5";
 
 const { values } = parseArgs({ options: { output: { type: "string" } } });
 if (!values.output) throw new Error("Usage: npm run export:legacy -- --output /path/to/new-directory");
 const output = resolve(values.output);
 const local = new URL(`http://127.0.0.1:${process.env.PORT || 4321}`);
 const site = new URL(process.env.EMDASH_SITE_URL || local);
+const sourceSite = new URL(process.env.EMDASH_SITE_URL || "https://dmesg.app");
 const mediaPath = "/_emdash/api/media/file/";
 const owners = new Set([site.origin, local.origin, `http://localhost:${local.port}`]);
 for (const origin of (process.env.LEGACY_ASSET_ORIGINS || "").split(/\s*,\s*/).filter(Boolean)) {
@@ -121,6 +122,27 @@ const resourceAttributes = {
   audio: ["src"], track: ["src"], embed: ["src"], object: ["data"], image: ["href", "xlink:href"],
 };
 
+function addArchiveMetadata(doc, path) {
+  const html = doc.childNodes.find(node => node.tagName === "html");
+  const head = html.childNodes.find(node => node.tagName === "head");
+  const body = html.childNodes.find(node => node.tagName === "body");
+  for (const node of [...head.childNodes]) {
+    if (node.tagName === "meta" && node.attrs.some(attr =>
+      attr.name === "name" && attr.value.trim().toLowerCase() === "robots")) {
+      defaultTreeAdapter.detachNode(node);
+    }
+  }
+  const [robots] = parseFragment('<meta name="robots" content="noindex">').childNodes;
+  defaultTreeAdapter.appendChild(head, robots);
+
+  const original = new URL(path, sourceSite);
+  const [notice] = parseFragment(
+    `<aside aria-label="归档说明" style="padding:0.65rem 1rem;text-align:center;border-bottom:1px solid currentColor">这是「土豆不好吃」博客的官方备份。<a href="${escapeAttribute(original.href)}" style="text-decoration:underline">原站 ${escapeText(original.host)}</a></aside>`,
+  ).childNodes;
+  if (body.childNodes.length) defaultTreeAdapter.insertBefore(body, notice, body.childNodes[0]);
+  else defaultTreeAdapter.appendChild(body, notice);
+}
+
 function rewriteHtml(html, page) {
   const doc = parse(html);
   const base = new URL(page.path, site);
@@ -171,6 +193,7 @@ function rewriteHtml(html, page) {
     return true;
   }
   visit(doc);
+  addArchiveMetadata(doc, page.path);
   return { title, html: serialize(doc) };
 }
 
@@ -224,13 +247,16 @@ try {
       await pipeline(Readable.fromWeb(response.body), createWriteStream(destination));
     }
   }
-  await writeFile(resolve(stage, "index.html"), `<!doctype html>
+  const index = parse(`<!doctype html>
 <html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>土豆不好吃 · 归档</title>
 <style>body{margin:2rem auto;padding:0 1rem;max-width:56rem;font:1rem/1.7 system-ui;color-scheme:light dark}</style>
 <h1>土豆不好吃 · 归档</h1>
 <h2>页面</h2><ul>${links.pages.join("\n")}</ul>
 <h2>文章</h2><ul>${links.posts.join("\n")}</ul></html>\n`);
+  addArchiveMetadata(index, "/");
+  await writeFile(resolve(stage, "index.html"), serialize(index));
+  await writeFile(resolve(stage, "robots.txt"), "User-agent: *\nAllow: /\n");
   await rename(stage, output);
   console.log(`Exported ${pages.length} pages and ${assets.size} assets to ${output}`);
   if (external.size) console.log(`External assets left as links: ${[...external].sort().join(", ")}`);
