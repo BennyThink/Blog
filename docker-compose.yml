@@ -20,3 +20,17 @@ services:
       timeout: 10s
       start_period: 120s
       retries: 5
+
+
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_TLS_CERT: "sans:localhost"
+      MP_SMTP_TLS_KEY: "sans:localhost"
+      MP_SMTP_REQUIRE_STARTTLS: "true"

@@ -24,13 +24,15 @@
   "dependencies": {
     "@astrojs/node": "^11.1.5",
     "@astrojs/react": "^7.0.0",
+    "@emdash-cms/auth": "1.6.0",
     "astro": "^7.3.2",
     "emdash": "1.6.0",
     "entities": "6.0.1",
     "ip2region.js": "^3.1.8",
     "parse5": "^7.3.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",

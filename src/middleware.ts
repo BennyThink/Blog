@@ -4,6 +4,7 @@ import { getRequestContext } from "emdash";
 import { invalidateCachedPosts, invalidatePageCache, serveCachedPage } from "./theme/page-cache";
 import { getThemeSettings, isPageCacheSize, isPostCacheTtl, isPrewarmTime, maxPageCacheMiB } from "./theme/settings";
 import { cancelPagePrewarm, getPrewarmPlan, initializePagePrewarm, prewarmPlanPath, refreshPrewarmSchedule } from "./theme/page-prewarm";
+import { addCommentContent } from "./utils/admin-comment-list";
 import { recordPostView } from "./utils/post-views";
 
 const publicPostComments = /^\/_emdash\/api\/comments\/posts\/([\w-]+)\/?$/;
@@ -93,6 +94,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
     })
     : [];
   response ??= await serveCachedPage(context, next, recordPostView);
+  if (request.method === "GET" && /^\/_emdash\/api\/admin\/comments\/?$/.test(url.pathname)) {
+    response = await addCommentContent(response, context.locals).catch(error => {
+      console.error("Could not resolve comment content", error);
+      return response!;
+    });
+  }
   if (response.ok && /^(POST|PUT|PATCH|DELETE)$/.test(request.method)) {
     const commentPost = request.method === "POST" && publicPostComments.exec(url.pathname);
     if (commentPost) invalidateCachedPosts([commentPost[1]]);

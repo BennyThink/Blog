@@ -1,6 +1,7 @@
 ---
 import { getCommentCount } from "emdash";
 import { getDb } from "emdash/runtime";
+import { approvedComments, commentPageSize, findCommentPage } from "../utils/comment-links";
 import CommentThread from "./CommentThread.astro";
 
 interface Props {
@@ -11,22 +12,22 @@ interface Props {
 const { collection, contentId } = Astro.props;
 const label = collection === "pages" ? "留言" : "评论";
 const db = await getDb();
-const approved = db.selectFrom("_emdash_comments")
-	.where("collection", "=", collection)
-	.where("content_id", "=", contentId)
-	.where("status", "=", "approved");
+const approved = approvedComments(db, collection, contentId);
 const roots = approved.where("parent_id", "is", null);
 const [total, rootCount] = await Promise.all([
 	getCommentCount(collection, contentId),
 	roots.select(({ fn }) => fn.countAll().as("count")).executeTakeFirstOrThrow(),
 ]);
 
-const pageSize = 30;
+const pageSize = commentPageSize;
 const lastPage = Math.max(1, Math.ceil(Number(rootCount.count) / pageSize));
-const requestedPage = Number(Astro.url.searchParams.get("comment-page") ?? "1");
+const targetId = Astro.url.searchParams.get("comment-id");
+const targetPage = targetId ? await findCommentPage(db, collection, contentId, targetId) : null;
+const requestedPage = targetPage ?? Number(Astro.url.searchParams.get("comment-page") ?? "1");
 const page = Number.isSafeInteger(requestedPage) ? Math.min(Math.max(requestedPage, 1), lastPage) : 1;
 const pageHref = (number: number) => {
 	const params = new URLSearchParams(Astro.url.searchParams);
+	params.delete("comment-id");
 	if (number === 1) params.delete("comment-page");
 	else params.set("comment-page", String(number));
 	const query = params.toString();

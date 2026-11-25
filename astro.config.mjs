@@ -6,6 +6,7 @@ import { sqlite } from "emdash/db";
 import { Features } from "lightningcss";
 import { sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { adminComments } from "./scripts/admin-comments.mjs";
 import { activatePrewarmListener } from "./scripts/prewarm-listener.mjs";
 
 function pluginImportPath(relativePath) {
@@ -127,9 +128,9 @@ export default defineConfig({
 		responsiveStyles: true,
 	},
 	vite: {
-		plugins: [themePluginCard, postsDateColumns],
+		plugins: [themePluginCard, postsDateColumns, adminComments],
 		optimizeDeps: {
-			rolldownOptions: { plugins: [themePluginCard, postsDateColumns] },
+			rolldownOptions: { plugins: [themePluginCard, postsDateColumns, adminComments] },
 		},
 		css: {
 			// Keep light-dark() native so the footer theme switcher works in
@@ -143,6 +144,17 @@ export default defineConfig({
 	},
 	integrations: [
 		react(),
+		{
+			name: "dmesg-admin-comment-reply",
+			hooks: {
+				"astro:config:setup": ({ injectRoute }) => {
+					injectRoute({
+						pattern: "/_emdash/api/admin/comments/[id]/reply",
+						entrypoint: pluginImportPath("./src/server/admin-comment-reply.ts"),
+					});
+				},
+			},
+		},
 		{
 			name: "dmesg-page-prewarm",
 			hooks: {

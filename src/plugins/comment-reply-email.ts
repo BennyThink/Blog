@@ -1,7 +1,54 @@
 import type { StoredComment, PluginContext } from "emdash";
 import { withEmDashRuntime } from "emdash/middleware";
 
+import { findCommentPage } from "../utils/comment-links";
+
 type Reply = Pick<StoredComment, "id" | "collection" | "contentId" | "parentId" | "authorName" | "authorEmail" | "body" | "status" | "moderationMetadata">;
+
+function escapeEmailHtml(value: string) {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+}
+
+function renderReplyEmail(siteName: string, title: string, authorName: string, summary: string, url: URL) {
+  const site = escapeEmailHtml(siteName);
+  const article = escapeEmailHtml(title);
+  const author = escapeEmailHtml(authorName);
+  const reply = escapeEmailHtml(summary).replace(/\r\n?|\n/g, "<br>");
+  const link = escapeEmailHtml(url.href);
+  return `<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>你的评论有新回复</title></head>
+<body style="margin:0;padding:0;background:#f3f5f4;color:#202824;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;">
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${author} 回复了你在《${article}》的评论。</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f4;">
+    <tr><td align="center" style="padding:28px 12px;">
+      <!--[if mso]><table role="presentation" width="560" cellspacing="0" cellpadding="0"><tr><td><![endif]-->
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;border:1px solid #dce6e0;border-top:4px solid #007858;border-radius:12px;background:#fff;">
+        <tr><td style="padding:26px 24px 20px;border-bottom:1px solid #e3eae6;">
+          <p style="margin:0 0 10px;font-size:13px;line-height:1.5;color:#007858;font-weight:bold;">${site}</p>
+          <h1 style="margin:0;font-size:28px;line-height:1.35;color:#202824;">你的评论有新回复</h1>
+          <p style="margin:12px 0 0;font-size:15px;line-height:1.7;color:#44554d;overflow-wrap:anywhere;">《${article}》</p>
+        </td></tr>
+        <tr><td style="padding:22px 24px 28px;">
+          <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#303e37;overflow-wrap:anywhere;"><strong>${author}</strong> 回复了你</p>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;">
+            <tr><td style="padding:14px 16px;background:#eef6f2;border-left:3px solid #007858;font-size:16px;line-height:1.8;color:#25362e;overflow-wrap:anywhere;word-break:break-word;">${reply}</td></tr>
+          </table>
+          <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:22px;">
+            <tr><td bgcolor="#007858" style="border-radius:6px;mso-padding-alt:12px 20px;">
+              <a href="${link}" style="display:inline-block;padding:12px 20px;font-size:15px;line-height:1.4;font-weight:bold;color:#fff;text-decoration:none;mso-padding-alt:0;">查看回复</a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="border-top:1px solid #e3eae6;padding:14px 24px;font-size:12px;line-height:1.6;color:#52645b;">你在发表评论时开启了回复邮件通知。</td></tr>
+      </table>
+      <!--[if mso]></td></tr></table><![endif]-->
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
 
 export async function sendCommentReplyEmail(ctx: PluginContext, reply: Reply): Promise<string> {
   if (reply.status !== "approved" || !reply.parentId) return "邮件未发送（回复尚未公开）";
@@ -28,20 +75,8 @@ export async function sendCommentReplyEmail(ctx: PluginContext, reply: Reply): P
       : content.slug;
     const path = reply.collection === "posts" ? `/${encodeURIComponent(content.slug)}.html` : "/message";
     const url = new URL(path, ctx.site.url);
-    const page = await withEmDashRuntime(async ({ db }) => {
-      const root = await db.selectFrom("_emdash_comments").select(["id", "created_at"])
-        .where("id", "=", reply.parentId!).where("status", "=", "approved").executeTakeFirst();
-      if (!root) return null;
-      const newer = await db.selectFrom("_emdash_comments")
-        .where("collection", "=", reply.collection).where("content_id", "=", reply.contentId)
-        .where("status", "=", "approved").where("parent_id", "is", null)
-        .where(eb => eb.or([
-          eb("created_at", ">", root.created_at),
-          eb.and([eb("created_at", "=", root.created_at), eb("id", ">", root.id)]),
-        ]))
-        .select(({ fn }) => fn.countAll().as("count")).executeTakeFirstOrThrow();
-      return Math.floor(Number(newer.count) / 30) + 1;
-    });
+    const page = await withEmDashRuntime(({ db }) =>
+      findCommentPage(db, reply.collection, reply.contentId, reply.id));
     if (page === null) return "邮件未发送（评论串尚未公开）";
     if (page > 1) url.searchParams.set("comment-page", String(page));
     url.hash = `comment-${reply.id}`;
@@ -58,6 +93,7 @@ export async function sendCommentReplyEmail(ctx: PluginContext, reply: Reply): P
         to: target.authorEmail,
         subject: `你在《${title}》的评论有新回复`,
         text: `${reply.authorName} 回复了你的评论：\n\n${summary}\n\n查看回复：${url.href}\n\n你在发表评论时开启了回复邮件通知。`,
+        html: renderReplyEmail(ctx.site.name, title, reply.authorName, summary, url),
       });
     } catch {
       await ctx.kv.delete(key);
