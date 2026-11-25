@@ -627,3 +627,5 @@ body .article-heading .article-dateline .byline .byline__avatars { display: none
   .article-related .post-grid { grid-template-columns: minmax(0, 1fr); }
   .article-comments .ec-comment-replies { margin-inline-start: 8px; padding-inline-start: 10px; }
 }
+
+.article-comments .comment-reply-notification { display: block; margin-block: 0 12px; font-size: 14px; }

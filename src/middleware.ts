@@ -42,6 +42,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (context.request.method === "POST" && /^\/_emdash\/api\/comments\/[^/]+\/[^/]+\/?$/.test(context.url.pathname)) {
     const requestContext = getRequestContext();
     if (requestContext) {
+      if (context.request.headers.get("content-type")?.includes("application/json")) {
+        const body = await context.request.clone().json().catch(() => null);
+        requestContext.commentNotifyOnReply = body?.notifyOnReply === "1";
+        if (typeof body?.parentId === "string") requestContext.commentReplyTargetId = body.parentId;
+      }
       const cfIp = context.request.headers.get("cf-connecting-ip")?.trim();
       const forwardedFor = context.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
       const candidate = cfIp || forwardedFor || context.clientAddress;

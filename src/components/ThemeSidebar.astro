@@ -25,7 +25,7 @@ const publishedPosts = db.selectFrom("ec_posts")
   .where("status", "=", "published")
   .where("deleted_at", "is", null);
 const candidates = currentPostId ? publishedPosts.where("id", "!=", currentPostId) : publishedPosts;
-const [sample, categories, tags, postStats, pageStats, commentStats] = await Promise.all([
+const [sample, categories, tags, postStats, pageStats, commentStats, firstPost, firstPage] = await Promise.all([
   candidates.select("id").orderBy(eb => eb.fn<number>("random", [])).limit(3).execute(),
   getTaxonomyTermsWithCacheHint("category", { includeCounts: true }),
   getTaxonomyTermsWithCacheHint("tag", { includeCounts: false }),
@@ -39,6 +39,18 @@ const [sample, categories, tags, postStats, pageStats, commentStats] = await Pro
     .select(eb => eb.fn.countAll<number>().as("count")).executeTakeFirstOrThrow(),
   db.selectFrom("_emdash_comments")
     .select(eb => eb.fn.countAll<number>().as("count")).executeTakeFirstOrThrow(),
+  db.selectFrom("ec_posts")
+    .where("status", "=", "published")
+    .where("deleted_at", "is", null)
+    .select("published_at")
+    .orderBy("published_at", "asc")
+    .limit(1).executeTakeFirst(),
+  db.selectFrom("ec_pages")
+    .where("status", "=", "published")
+    .where("deleted_at", "is", null)
+    .select("published_at")
+    .orderBy("published_at", "asc")
+    .limit(1).executeTakeFirst(),
 ]);
 
 const posts = sample.length ? await getEmDashCollection("posts", {
@@ -72,8 +84,13 @@ const siteDate = new Intl.DateTimeFormat("sv-SE", {
   month: "2-digit",
   day: "2-digit",
 });
-const founded = "2015-08-23";
-const runningDays = Math.max(0, (Date.parse(siteDate.format(new Date())) - Date.parse(founded)) / 86_400_000);
+const foundedAt = [firstPost?.published_at, firstPage?.published_at]
+  .filter((date): date is string => Boolean(date))
+  .sort()[0];
+const founded = foundedAt ? siteDate.format(new Date(foundedAt)).replace(/-0/g, "-") : "—";
+const runningDays = foundedAt
+  ? Math.max(0, (Date.parse(siteDate.format(new Date())) - Date.parse(foundedAt)) / 86_400_000)
+  : 0;
 // Migration rewrote modified timestamps, so use the latest article publication.
 const lastUpdate = postStats.latest ? siteDate.format(new Date(postStats.latest)).replace(/-0/g, "-") : "—";
 const stats = [

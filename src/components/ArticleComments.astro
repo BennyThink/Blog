@@ -54,6 +54,16 @@ if (open && user && emdash?.db) {
 		const form = section.querySelector<HTMLFormElement>("[data-ec-comment-form]");
 		if (!form) return;
 
+		const notification = document.createElement("label");
+		notification.className = "comment-reply-notification";
+		const optIn = document.createElement("input");
+		optIn.type = "checkbox";
+		optIn.name = "notifyOnReply";
+		optIn.value = "1";
+		optIn.defaultChecked = true;
+		notification.append(optIn, " 有回复时邮件通知我");
+		form.querySelector(".ec-comment-form-submit")?.before(notification);
+
 		const parentInput = document.createElement("input");
 		parentInput.type = "hidden";
 		parentInput.name = "parentId";

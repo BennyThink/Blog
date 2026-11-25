@@ -6,5 +6,8 @@ declare module "emdash" {
 		commentClientIp?: string | null;
 		/** Suppress Telegram notifications for replies originating in the bot. */
 		telegramCommentReply?: boolean;
+		telegramReplyMessageId?: number;
+		commentNotifyOnReply?: boolean;
+		commentReplyTargetId?: string;
 	}
 }

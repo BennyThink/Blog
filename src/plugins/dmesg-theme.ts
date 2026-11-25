@@ -9,13 +9,14 @@ import { readPublicSettings, settingsSchema } from "../theme/settings.ts";
 import { rejectsComment, type CommentRules } from "./comment-rules.ts";
 import { portableTextBlocks } from "./portable-text/config.mjs";
 import { lookupIpLocation } from "./ip-location.ts";
+import { sendCommentReplyEmail } from "./comment-reply-email.ts";
 
 export function createPlugin() {
   return definePlugin({
     id: "dmesg-theme", displayName: "土豆皮", version: "0.1.0",
     description: "旧站主题适配、公告、SEO、评论规则及 Telegram 通知。",
     storage: { likes: { indexes: ["postId"] } },
-    capabilities: ["hooks.page-fragments:register", "users:read", "comments:read", "content:read", "hooks.content-policy:register", "network:request"],
+    capabilities: ["hooks.page-fragments:register", "users:read", "comments:read", "email:send", "content:read", "hooks.content-policy:register", "network:request"],
     allowedHosts: ["api.telegram.org", "rest.akismet.com"],
     admin: {
       pages: [{ path: "/settings", label: "主题设置", icon: "settings" }],
@@ -65,7 +66,7 @@ export function createPlugin() {
 
           const update = route.input && typeof route.input === "object" ? route.input as TelegramUpdate : {};
           const message = update.message;
-          if (!message || String(message.from?.id ?? "") !== ownerId || !message.chat?.id || !message.reply_to_message?.message_id) return { ok: true };
+          if (!message || String(message.from?.id ?? "") !== ownerId || String(message.chat?.id ?? "") !== ownerId || !message.reply_to_message?.message_id) return { ok: true };
 
           const updateKey = `telegram:handled:${update.update_id ?? ""}`;
           if (update.update_id !== undefined) {
@@ -75,7 +76,7 @@ export function createPlugin() {
           const acknowledge = async (text: string) => {
             try {
               await telegramApi(route, token, "sendMessage", {
-                chat_id: message.chat!.id,
+                chat_id: ownerId,
                 text,
                 ...(message.message_id ? { reply_parameters: { message_id: message.message_id } } : {}),
               });
@@ -85,7 +86,7 @@ export function createPlugin() {
           };
           let completed = false;
           try {
-            const mappingKey = `telegram:comment:${message.chat.id}:${message.reply_to_message.message_id}`;
+            const mappingKey = `telegram:comment:${ownerId}:${message.reply_to_message.message_id}`;
             const mapping = await route.kv.get<TelegramCommentMapping>(mappingKey);
             const body = message.text?.trim();
             if (!mapping || !body || body.startsWith("/")) {
@@ -113,7 +114,10 @@ export function createPlugin() {
               }),
             });
             const response = await withEmDashRuntime(runtime =>
-              runWithContext({ editMode: false, ...getRequestContext(), telegramCommentReply: true }, () =>
+              runWithContext({ editMode: false, ...getRequestContext(), telegramCommentReply: true,
+                telegramReplyMessageId: message.message_id,
+                commentReplyTargetId: mapping.commentId,
+              }, () =>
                 runtime.handlePublicCommentSubmission(mapping.collection, mapping.contentId, request, author),
               ),
             );
@@ -124,11 +128,19 @@ export function createPlugin() {
               return { ok: true };
             }
             completed = true;
-            await acknowledge(result.data.status === "approved"
-              ? "OK，回复已发布。"
-              : result.data.status === "pending"
-                ? "OK，回复已提交，等待审核。"
-                : "回复已保存，当前未公开。");
+            if (result.data.status === "approved") {
+              const reply = await route.comments?.get(result.data.id).catch(() => {
+                route.log.warn("无法读取已发布的 Telegram 回复。", { commentId: result.data?.id });
+                return null;
+              });
+              const outcome = reply
+                ? await sendCommentReplyEmail(route, reply)
+                : "邮件发送失败（无法读取已发布的回复）";
+              await acknowledge(`回复已添加，${outcome}。`);
+            } else {
+              const state = result.data.status === "pending" ? "等待审核" : "当前未公开";
+              await acknowledge(`回复已添加，${state}。邮件未发送。`);
+            }
             return { ok: true };
           } catch {
             route.log.error("处理 Telegram 回复失败。", { updateId: update.update_id });
@@ -258,6 +270,14 @@ export function createPlugin() {
         return fragments;
       },
       "comment:beforeCreate": async (event, ctx) => {
+        const request = getRequestContext();
+        if (request?.commentNotifyOnReply) event.metadata.dmesgNotifyOnReply = true;
+        if (event.comment.parentId && request?.commentReplyTargetId) {
+          event.metadata.dmesgReplyTargetId = request.commentReplyTargetId;
+        }
+        if (request?.telegramReplyMessageId) {
+          event.metadata.dmesgTelegramReplyMessageId = request.telegramReplyMessageId;
+        }
         if (/^telegram-owner@/i.test(event.comment.authorEmail)) return;
         if (event.comment.collection === "pages") {
           const page = await ctx.content!.get("pages", event.comment.contentId);
@@ -342,17 +362,35 @@ export function createPlugin() {
           ctx.log.info("Telegram 文章通知发送成功。", { contentId: id });
         } catch (error) { ctx.log.error("Telegram 文章通知发送失败。", { contentId: id, message: error instanceof Error ? error.message : "unknown" }); }
       } },
-      "comment:afterModerate": async ({ comment }) => {
+      "comment:afterModerate": async ({ comment, newStatus }, ctx) => {
         if (comment.collection === "posts") invalidateCachedPosts([comment.contentId]);
+        if (newStatus !== "approved" || !comment.parentId) return;
+        const messageId = comment.moderationMetadata?.dmesgTelegramReplyMessageId;
+        const fromTelegram = typeof messageId === "number";
+        if (!fromTelegram && !await isSiteOwnerComment(ctx, comment.authorUserId)) return;
+        const outcome = await sendCommentReplyEmail(ctx, comment);
+        if (!fromTelegram || !(await ctx.settings.get<boolean>("telegramEnabled"))) return;
+        const token = await getTelegramToken(ctx);
+        const ownerId = String(await ctx.settings.get<string>("telegramOwnerId") ?? "").trim();
+        if (token && ownerId) await telegramApi(ctx, token, "sendMessage", {
+          chat_id: ownerId,
+          text: `回复已审核发布，${outcome}。`,
+          reply_parameters: { message_id: messageId, allow_sending_without_reply: true },
+        });
       },
       "comment:afterCreate": async (event, ctx) => {
         if (event.content.collection === "posts") invalidateCachedPosts([event.content.id]);
-        if (getRequestContext()?.telegramCommentReply || event.comment.status === "spam" || /^telegram-owner@/i.test(event.comment.authorEmail)) return;
+        if (getRequestContext()?.telegramCommentReply || event.comment.moderationMetadata?.dmesgTelegramReplyMessageId || event.comment.status === "spam" || /^telegram-owner@/i.test(event.comment.authorEmail)) return;
+        if (await isSiteOwnerComment(ctx, event.comment.authorUserId)) {
+          if (event.comment.status === "approved" && event.comment.parentId) {
+            await sendCommentReplyEmail(ctx, event.comment);
+          }
+          return;
+        }
         if (!(await ctx.settings.get<boolean>("telegramEnabled"))) return;
         const token = await getTelegramToken(ctx);
         const ownerId = String(await ctx.settings.get<string>("telegramOwnerId") ?? "").trim();
         if (!token || !ownerId) return;
-        if (event.comment.authorUserId && event.comment.authorUserId === (await findTelegramReplyAuthor(ctx))?.id) return;
         if (!(await registerTelegramWebhook(ctx, token))) return;
         const postUrl = new URL(`/${encodeURIComponent(event.content.slug)}.html#comment-${encodeURIComponent(event.comment.id)}`, ctx.site.url).href;
         try {
@@ -378,6 +416,10 @@ export function createPlugin() {
       },
     },
   });
+}
+
+async function isSiteOwnerComment(ctx: PluginContext, userId: string | null) {
+  return Boolean(userId && userId === (await findTelegramReplyAuthor(ctx))?.id);
 }
 
 async function findTelegramReplyAuthor(ctx: PluginContext) {
