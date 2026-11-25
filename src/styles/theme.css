@@ -102,7 +102,7 @@ a { text-underline-offset: .2em; }
 .sidebar-recommendations li a { display: grid; grid-template-columns: 100px minmax(0, 1fr); align-items: center; gap: .65rem; padding: .65rem 0; color: #00a67c; }
 .sidebar-recommendations li:first-child a { padding-top: 0; }
 .sidebar-recommendations li:last-child a { padding-bottom: 0; }
-.sidebar-recommendations .sidebar-recommendations__image { display: block; width: 100px; height: 64px; object-fit: cover; border-radius: var(--radius-sm); }
+.sidebar-recommendations img.sidebar-recommendations__image { display: block; width: 100px; height: 63px; object-fit: cover; border-radius: var(--radius-sm); }
 .sidebar-recommendations__body { display: grid; gap: .25rem; }
 .sidebar-recommendations__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; line-height: 1.45; }
 .sidebar-recommendations__meta { display: flex; flex-wrap: wrap; gap: 0 .5rem; color: var(--color-text-secondary); font-size: .75rem; }
